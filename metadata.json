@@ -1,0 +1,5 @@
+{
+  "name": "Sonic Wisdom",
+  "description": "A cross-cultural sound explorer using Gemini Live API to discuss phonemes, mantras, galdr, and ancient traditions.",
+  "requestFramePermissions": ["microphone"]
+}
