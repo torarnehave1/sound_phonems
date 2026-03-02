@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Volume2, Info, Sparkles, History } from 'lucide-react';
+import { Mic, MicOff, Info, Sparkles, History } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
@@ -91,9 +91,7 @@ export default function App() {
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 p-8 flex justify-between items-center z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-900/20">
-            <Volume2 className="w-5 h-5 text-white" />
-          </div>
+          <img src="https://favicons.vegvisr.org/favicons/1772468624359-1-1772468669531-512x512.png" alt="Sonic Wisdom" className="w-[100px] h-[100px] rounded-full shadow-lg shadow-orange-900/20" />
           <h1 className="text-2xl font-serif font-light tracking-widest uppercase">Sonic Wisdom</h1>
         </div>
         
