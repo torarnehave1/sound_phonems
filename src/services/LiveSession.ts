@@ -11,6 +11,7 @@ export class LiveSessionManager {
   private audioContext: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private stream: MediaStream | null = null;
+  private recordingDestination: MediaStreamAudioDestinationNode | null = null;
   private isConnected = false;
 
   constructor(apiKey: string) {
@@ -119,6 +120,10 @@ export class LiveSessionManager {
       const source = this.audioContext.createMediaStreamSource(this.stream);
       const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
+      // Create recording destination that mixes mic + AI audio
+      this.recordingDestination = this.audioContext.createMediaStreamDestination();
+      source.connect(this.recordingDestination); // mic → recording mix
+
       source.connect(processor);
       processor.connect(this.audioContext.destination);
 
@@ -177,6 +182,9 @@ export class LiveSessionManager {
     const source = this.audioContext.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(this.audioContext.destination);
+    if (this.recordingDestination) {
+      source.connect(this.recordingDestination); // AI audio → recording mix
+    }
 
     // Schedule playback for gapless audio
     const currentTime = this.audioContext.currentTime;
@@ -203,6 +211,10 @@ export class LiveSessionManager {
     this.nextStartTime = 0;
   }
 
+  getRecordingStream(): MediaStream | null {
+    return this.recordingDestination?.stream || null;
+  }
+
   disconnect() {
     if (this.session) {
       this.session.close();
@@ -214,6 +226,7 @@ export class LiveSessionManager {
     if (this.audioContext) {
       this.audioContext.close();
     }
+    this.recordingDestination = null;
     this.isConnected = false;
   }
 }

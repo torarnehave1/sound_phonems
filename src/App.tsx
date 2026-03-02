@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Info, Sparkles, History } from 'lucide-react';
+import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
+import { ConversationRecorder, saveConversation } from './services/RecordingService';
 import { Visualizer } from './components/Visualizer';
 
 export default function App() {
@@ -16,6 +17,12 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [inputText, setInputText] = useState("");
   
+  // Recording
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const recorderRef = useRef<ConversationRecorder>(new ConversationRecorder());
+
   // Settings
   const [voice, setVoice] = useState<string>("Kore"); // Default to Female
   const [temperature, setTemperature] = useState<number>(0.7);
@@ -74,6 +81,38 @@ export default function App() {
       startSession();
     }
   };
+
+  const toggleRecording = useCallback(async () => {
+    if (!session || !isConnected) return;
+
+    if (isRecording) {
+      // Stop recording and save
+      setIsRecording(false);
+      setIsSaving(true);
+      setSaveStatus("Saving conversation...");
+      try {
+        const { blob, duration } = await recorderRef.current.stop();
+        const { recordingId } = await saveConversation(blob, duration, transcript);
+        setSaveStatus("Saved!");
+        setTimeout(() => setSaveStatus(null), 3000);
+      } catch (err: any) {
+        setSaveStatus(null);
+        setError(err.message || "Failed to save recording");
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Start recording
+      const stream = session.getRecordingStream();
+      if (!stream) {
+        setError("Recording stream not available. Start a conversation first.");
+        return;
+      }
+      recorderRef.current.start(stream);
+      setIsRecording(true);
+      setSaveStatus(null);
+    }
+  }, [session, isConnected, isRecording, transcript]);
 
   const handleSendText = (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,14 +237,41 @@ export default function App() {
             <button
               onClick={toggleConnection}
               className={`relative z-10 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
-                isConnected 
-                  ? 'bg-white text-black scale-110 shadow-[0_0_50px_rgba(255,255,255,0.2)]' 
+                isConnected
+                  ? 'bg-white text-black scale-110 shadow-[0_0_50px_rgba(255,255,255,0.2)]'
                   : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
               }`}
             >
               {isConnected ? <Mic className="w-8 h-8" /> : <MicOff className="w-8 h-8 opacity-50" />}
             </button>
           </div>
+
+          {/* Record Button - visible when connected */}
+          {isConnected && (
+            <button
+              onClick={toggleRecording}
+              disabled={isSaving}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-all ${
+                isRecording
+                  ? 'bg-red-500/20 border border-red-500/50 text-red-300 hover:bg-red-500/30'
+                  : 'bg-white/5 border border-white/10 text-white/60 hover:text-white hover:border-white/30'
+              }`}
+            >
+              {isSaving ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : isRecording ? (
+                <Square className="w-3 h-3 fill-red-400" />
+              ) : (
+                <Circle className="w-3 h-3 fill-red-500 text-red-500" />
+              )}
+              {isSaving ? 'Saving...' : isRecording ? 'Stop Recording' : 'Record'}
+            </button>
+          )}
+
+          {/* Save Status */}
+          {saveStatus && !isSaving && (
+            <p className="text-xs text-emerald-400/80 tracking-widest uppercase">{saveStatus}</p>
+          )}
 
           <Visualizer isActive={isConnected} />
         </div>
