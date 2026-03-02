@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mic, MicOff, Volume2, Info, Sparkles, History } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
+import { fetchLiveConfig } from './services/ApiKeyService';
 import { Visualizer } from './components/Visualizer';
 
 export default function App() {
@@ -20,38 +21,40 @@ export default function App() {
   const [temperature, setTemperature] = useState<number>(0.7);
 
   const startSession = useCallback(async () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      setError("API Key missing. Please configure it in the Secrets panel.");
-      return;
+    try {
+      setError(null);
+      const config = await fetchLiveConfig();
+
+      const newSession = new LiveSessionManager(config.apiKey);
+      setSession(newSession);
+
+      await newSession.connect({
+        onMessage: (text) => {
+          setTranscript(prev => prev + text);
+        },
+        onInterrupted: () => {
+          setTranscript("");
+        },
+        onError: (err) => {
+          console.error(err);
+          setError("Connection error. Please try again.");
+          setIsConnected(false);
+        },
+        onClose: () => {
+          setIsConnected(false);
+        }
+      }, {
+        voice,
+        temperature,
+        model: config.model
+      });
+
+      setIsConnected(true);
+      setTranscript("");
+    } catch (err: any) {
+      setError(err.message || "Failed to initialize session.");
     }
-
-    const newSession = new LiveSessionManager(apiKey);
-    setSession(newSession);
-
-    await newSession.connect({
-      onMessage: (text) => {
-        setTranscript(prev => prev + text);
-      },
-      onInterrupted: () => {
-        setTranscript("");
-      },
-      onError: (err) => {
-        console.error(err);
-        setError("Connection error. Please try again.");
-        setIsConnected(false);
-      },
-      onClose: () => {
-        setIsConnected(false);
-      }
-    }, {
-      voice,
-      temperature
-    });
-
-    setIsConnected(true);
-    setTranscript("");
-  }, []);
+  }, [voice, temperature]);
 
   const stopSession = useCallback(() => {
     if (session) {

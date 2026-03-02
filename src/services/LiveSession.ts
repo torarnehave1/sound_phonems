@@ -25,10 +25,11 @@ export class LiveSessionManager {
   }, settings: {
     voice: string;
     temperature: number;
+    model?: string;
   }) {
     try {
       this.session = await this.ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: settings.model || "gemini-2.5-flash-native-audio-preview-09-2025",
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
