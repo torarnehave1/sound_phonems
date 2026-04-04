@@ -12,7 +12,6 @@ export class LiveSessionManager {
   private workletNode: AudioWorkletNode | null = null;
   private stream: MediaStream | null = null;
   private isConnected = false;
-  private speechRate = 1.0;
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({ apiKey });
@@ -28,9 +27,7 @@ export class LiveSessionManager {
     temperature: number;
     model?: string;
     systemInstruction?: string;
-    speechRate?: number;
   }) {
-    this.speechRate = settings.speechRate || 1.0;
     try {
       this.session = await this.ai.live.connect({
         model: settings.model || "gemini-3.1-flash-live-preview",
@@ -180,7 +177,6 @@ export class LiveSessionManager {
 
     const source = this.audioContext.createBufferSource();
     source.buffer = audioBuffer;
-    source.playbackRate.value = this.speechRate;
     source.connect(this.audioContext.destination);
 
     // Schedule playback for gapless audio

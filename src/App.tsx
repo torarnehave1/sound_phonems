@@ -38,7 +38,6 @@ export default function App() {
   const [temperature, setTemperature] = useState<number>(0.7);
   const [conversationStyle, setConversationStyle] = useState<string>("sage");
   const [selectedTheme, setSelectedTheme] = useState<string>("sonic");
-  const [speechRate, setSpeechRate] = useState<number>(1.1);
   const [reflectionMode, setReflectionMode] = useState<boolean>(true);
   const [customInstructions, setCustomInstructions] = useState<string>("");
 
@@ -111,12 +110,6 @@ export default function App() {
       Your goal is to foster a space where wisdom can emerge from the quiet.`;
     }
 
-    if (speechRate < 0.9) {
-      instruction += `\n\nSPEECH RATE: Speak very slowly and clearly.`;
-    } else if (speechRate > 1.1) {
-      instruction += `\n\nSPEECH RATE: Speak at a faster, more energetic pace.`;
-    }
-
     return instruction;
   };
 
@@ -150,8 +143,7 @@ export default function App() {
         voice,
         temperature,
         model: config.model,
-        systemInstruction: getSystemInstruction(),
-        speechRate
+        systemInstruction: getSystemInstruction()
       });
 
       setIsConnected(true);
@@ -159,7 +151,7 @@ export default function App() {
     } catch (err: any) {
       setError(err.message || "Failed to initialize session.");
     }
-  }, [voice, temperature, conversationStyle, selectedTheme, speechRate, reflectionMode, customInstructions]);
+  }, [voice, temperature, conversationStyle, selectedTheme, reflectionMode, customInstructions]);
 
   const stopSession = useCallback(() => {
     if (session) {
@@ -332,22 +324,6 @@ export default function App() {
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px] text-white/80 focus:outline-none focus:border-orange-500/50 h-20 resize-none"
                 />
               )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] uppercase tracking-widest text-white/40">Speech Rate</label>
-                <span className="text-[10px] text-white/60">{speechRate.toFixed(1)}x</span>
-              </div>
-              <input 
-                type="range" 
-                min="0.5" 
-                max="1.5" 
-                step="0.1" 
-                value={speechRate}
-                onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                className="w-full accent-orange-500"
-              />
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
