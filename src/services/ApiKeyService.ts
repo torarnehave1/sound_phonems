@@ -1,27 +1,23 @@
 /**
  * Service to manage API key and model configuration for Gemini Live.
+ * Fetches the key from the Vegvisr gemini-worker using the logged-in user's credentials.
  */
 export async function fetchLiveConfig() {
-  // In this environment, the API key is provided via process.env.GEMINI_API_KEY
-  // or can be selected via window.aistudio if missing.
-  
-  let apiKey = process.env.GEMINI_API_KEY || (process as any).env.API_KEY;
+  const stored = localStorage.getItem('user');
+  const user = stored ? JSON.parse(stored) : null;
+  const userId = user?.user_id || user?.email || null;
 
-  if (!apiKey && typeof window !== 'undefined' && (window as any).aistudio) {
-    const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-    if (!hasKey) {
-      await (window as any).aistudio.openSelectKey();
-    }
-    // After selection, the key should be available in the environment
-    apiKey = process.env.GEMINI_API_KEY || (process as any).env.API_KEY;
+  const res = await fetch('https://gemini.vegvisr.org/live-config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).error || 'Failed to fetch live config');
   }
 
-  if (!apiKey) {
-    throw new Error("API Key missing. Please configure it in the Secrets panel.");
-  }
-
-  return {
-    apiKey,
-    model: "gemini-3.1-flash-live-preview"
-  };
+  const data = await res.json() as { apiKey: string; model: string };
+  return data;
 }
