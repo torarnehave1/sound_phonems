@@ -6,6 +6,7 @@ import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
 import { ConversationRecorder, saveConversation } from './services/RecordingService';
 import { Visualizer } from './components/Visualizer';
+import { AuthGate, UserBadge } from './auth/VegvisrAuth';
 
 declare global {
   interface Window {
@@ -200,6 +201,7 @@ export default function App() {
   };
 
   return (
+    <AuthGate>
     <div className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
       <div className="atmosphere" />
       
@@ -211,6 +213,7 @@ export default function App() {
         </div>
         
         <div className="flex gap-4">
+          <UserBadge />
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className={`p-2 rounded-full transition-colors ${showSettings ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
@@ -562,5 +565,6 @@ export default function App() {
         Resonating across cultures & traditions
       </footer>
     </div>
+    </AuthGate>
   );
 }
