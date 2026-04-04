@@ -69,7 +69,13 @@ Return ONLY valid JSON, no markdown fencing.`
   if (!res.ok) throw new Error(`AI analyze failed: ${res.status}`);
   const data = await res.json();
   try {
-    return JSON.parse(data.response);
+    // The API might return a JSON string in the 'response' field
+    const parsed = typeof data.response === 'string' ? JSON.parse(data.response) : data.response;
+    return {
+      title: parsed.title || 'Sonic Wisdom Conversation',
+      summary: parsed.summary || transcript.slice(0, 200),
+      keywords: parsed.keywords || ['sonic-wisdom']
+    };
   } catch {
     return { title: 'Sonic Wisdom Conversation', summary: transcript.slice(0, 200), keywords: ['sonic-wisdom'] };
   }
@@ -79,6 +85,7 @@ async function saveToPortfolio(params: {
   r2Key: string; r2Url: string; fileName: string;
   duration: number; fileSize: number;
   title: string; summary: string; keywords: string[];
+  category: string;
 }): Promise<{ recordingId: string; success: boolean }> {
   const res = await fetch(`${PORTFOLIO_URL}/save-recording`, {
     method: 'POST',
@@ -96,7 +103,7 @@ async function saveToPortfolio(params: {
       duration: params.duration,
       transcriptionText: params.summary,
       tags: params.keywords,
-      category: 'Sonic Wisdom',
+      category: params.category,
       audioFormat: 'webm',
       sampleRate: 48000,
       aiService: 'cloudflare-ai',
@@ -107,7 +114,7 @@ async function saveToPortfolio(params: {
   return res.json();
 }
 
-export async function saveConversation(blob: Blob, duration: number, transcript: string): Promise<{ recordingId: string }> {
+export async function saveConversation(blob: Blob, duration: number, transcript: string, category: string = 'Sonic Wisdom'): Promise<{ recordingId: string }> {
   const fileName = `sonic-wisdom-${Date.now()}.webm`;
 
   // Upload audio to R2
@@ -126,6 +133,7 @@ export async function saveConversation(blob: Blob, duration: number, transcript:
     title,
     summary,
     keywords,
+    category,
   });
 
   return { recordingId: result.recordingId };

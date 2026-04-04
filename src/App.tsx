@@ -7,6 +7,15 @@ import { fetchLiveConfig } from './services/ApiKeyService';
 import { ConversationRecorder, saveConversation } from './services/RecordingService';
 import { Visualizer } from './components/Visualizer';
 
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
+
 export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [transcript, setTranscript] = useState<string>("");
@@ -26,6 +35,68 @@ export default function App() {
   // Settings
   const [voice, setVoice] = useState<string>("Kore"); // Default to Female
   const [temperature, setTemperature] = useState<number>(0.7);
+  const [conversationStyle, setConversationStyle] = useState<string>("sage");
+  const [selectedTheme, setSelectedTheme] = useState<string>("sonic");
+  const [speechRate, setSpeechRate] = useState<number>(1.1);
+  const [reflectionMode, setReflectionMode] = useState<boolean>(true);
+  const [customInstructions, setCustomInstructions] = useState<string>("");
+
+  const THEMES: Record<string, { label: string; topics: string; context: string }> = {
+    sonic: {
+      label: "Sonic Wisdom",
+      topics: "linguistics, phonemes, and ancient sound traditions (Norse Galdr, Vedic Mantras, Sufism, Taoism)",
+      context: "Your knowledge spans the cross-cultural significance of sound and how it shapes reality."
+    },
+    tech: {
+      label: "Tech Explorer",
+      topics: "technology, specifically Cloudflare Serverless, AI, LLM inference, and modern coding practices",
+      context: "You are at the cutting edge of software architecture and artificial intelligence."
+    },
+    wellness: {
+      label: "Holistic Wellness",
+      topics: "trauma prevention, bioenergetics, yoga, and holistic body work",
+      context: "You understand the deep connection between the body, mind, and nervous system."
+    }
+  };
+
+  const STYLES: Record<string, string> = {
+    sage: `You are an expert in {{TOPICS}}. {{CONTEXT}} 
+          Engage in deep, atmospheric conversations. 
+          Keep responses concise but profound. Use the user's voice input to guide the exploration.`,
+    interviewer: `You are a curious researcher interviewing the user about {{TOPICS}}. {{CONTEXT}} 
+          Ask insightful questions to draw out the user's insights and research together. 
+          Keep the tone professional yet inquisitive.`,
+    podcast: `You are a co-host on a podcast about {{TOPICS}}. {{CONTEXT}} 
+          Engage in a natural, back-and-forth dialogue with the user (your co-host). 
+          Share expert insights while reacting naturally to the user's points. 
+          The tone should be conversational, engaging, and fluid.`,
+    custom: customInstructions
+  };
+
+  const getSystemInstruction = () => {
+    if (conversationStyle === 'custom') return customInstructions;
+    const theme = THEMES[selectedTheme];
+    let instruction = STYLES[conversationStyle]
+      .replace("{{TOPICS}}", theme.topics)
+      .replace("{{CONTEXT}}", theme.context);
+
+    if (reflectionMode) {
+      instruction += `\n\nCRITICAL CONVERSATIONAL PACE: The user is a native Norwegian speaker who values reflection, silence, and deep thought. 
+      Speak at a natural, measured pace. Allow for significant pauses between your thoughts. 
+      Do not rush to fill the silence; silence is a space for reflection. 
+      Acknowledge the cultural context of thoughtful, unhurried dialogue. 
+      If the user pauses, wait patiently for them to continue their thought. 
+      Your goal is to foster a space where wisdom can emerge from the quiet.`;
+    }
+
+    if (speechRate < 0.9) {
+      instruction += `\n\nSPEECH RATE: Speak very slowly and clearly.`;
+    } else if (speechRate > 1.1) {
+      instruction += `\n\nSPEECH RATE: Speak at a faster, more energetic pace.`;
+    }
+
+    return instruction;
+  };
 
   const startSession = useCallback(async () => {
     try {
@@ -36,11 +107,14 @@ export default function App() {
       setSession(newSession);
 
       await newSession.connect({
-        onMessage: (text) => {
-          setTranscript(prev => prev + text);
+        onMessage: (text, isUser) => {
+          setTranscript(prev => {
+            const prefix = isUser ? "\n\n**You:** " : "";
+            return prev + prefix + text;
+          });
         },
         onInterrupted: () => {
-          setTranscript("");
+          // Keep transcript on interrupt
         },
         onError: (err) => {
           console.error(err);
@@ -53,7 +127,9 @@ export default function App() {
       }, {
         voice,
         temperature,
-        model: config.model
+        model: config.model,
+        systemInstruction: getSystemInstruction(),
+        speechRate
       });
 
       setIsConnected(true);
@@ -61,7 +137,7 @@ export default function App() {
     } catch (err: any) {
       setError(err.message || "Failed to initialize session.");
     }
-  }, [voice, temperature]);
+  }, [voice, temperature, conversationStyle, selectedTheme, speechRate, reflectionMode, customInstructions]);
 
   const stopSession = useCallback(() => {
     if (session) {
@@ -92,7 +168,7 @@ export default function App() {
       setSaveStatus("Saving conversation...");
       try {
         const { blob, duration } = await recorderRef.current.stop();
-        const { recordingId } = await saveConversation(blob, duration, transcript);
+        await saveConversation(blob, duration, transcript, THEMES[selectedTheme].label);
         setSaveStatus("Saved!");
         setTimeout(() => setSaveStatus(null), 3000);
       } catch (err: any) {
@@ -184,6 +260,86 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-white/40">Theme</label>
+              <div className="grid grid-cols-1 gap-2">
+                {Object.entries(THEMES).map(([id, theme]) => (
+                  <button
+                    key={id}
+                    onClick={() => setSelectedTheme(id)}
+                    className={`text-[10px] py-2 px-3 rounded-lg border transition-all text-left ${
+                      selectedTheme === id 
+                        ? 'bg-orange-500 text-white border-orange-500' 
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-white/40">Conversation Style</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'sage', label: 'Sage' },
+                  { id: 'interviewer', label: 'Interviewer' },
+                  { id: 'podcast', label: 'Podcast' },
+                  { id: 'custom', label: 'Custom' }
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setConversationStyle(s.id)}
+                    className={`text-[10px] py-1.5 rounded-lg border transition-all ${
+                      conversationStyle === s.id 
+                        ? 'bg-orange-500 text-white border-orange-500' 
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {conversationStyle === 'custom' && (
+                <textarea
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  placeholder="Define your own rules..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px] text-white/80 focus:outline-none focus:border-orange-500/50 h-20 resize-none"
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] uppercase tracking-widest text-white/40">Speech Rate</label>
+                <span className="text-[10px] text-white/60">{speechRate.toFixed(1)}x</span>
+              </div>
+              <input 
+                type="range" 
+                min="0.5" 
+                max="1.5" 
+                step="0.1" 
+                value={speechRate}
+                onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                className="w-full accent-orange-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
+              <label className="text-[10px] uppercase tracking-widest text-white/40">Reflection Mode</label>
+              <button
+                onClick={() => setReflectionMode(!reflectionMode)}
+                className={`w-10 h-5 rounded-full relative transition-colors ${reflectionMode ? 'bg-orange-500' : 'bg-white/10'}`}
+              >
+                <motion.div
+                  animate={{ x: reflectionMode ? 20 : 2 }}
+                  className="absolute top-1 left-0 w-3 h-3 rounded-full bg-white shadow-sm"
+                />
+              </button>
+            </div>
+
+            <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <label className="text-[10px] uppercase tracking-widest text-white/40">Temperature</label>
                 <span className="text-[10px] text-white/60">{temperature.toFixed(1)}</span>
@@ -209,14 +365,17 @@ export default function App() {
       <main className="w-full max-w-2xl flex flex-col items-center gap-12 z-10">
         <div className="text-center space-y-4">
           <motion.h2 
+            key={selectedTheme}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-6xl font-serif font-light italic text-white/90"
           >
-            {isConnected ? "Listening to the Unseen..." : "The Silence Awaits"}
+            {isConnected ? "Listening to the Unseen..." : THEMES[selectedTheme].label}
           </motion.h2>
           <p className="text-white/40 font-light tracking-widest uppercase text-xs">
-            Explore the sacred phonemes of ancient traditions
+            {selectedTheme === 'sonic' ? 'Explore the sacred phonemes of ancient traditions' : 
+             selectedTheme === 'tech' ? 'Deep dive into serverless, AI, and modern code' :
+             'Journey through trauma prevention and body work'}
           </p>
         </div>
 
@@ -360,17 +519,16 @@ export default function App() {
               <h3 className="text-2xl font-serif">About Sonic Wisdom</h3>
               <div className="space-y-4 text-white/60 leading-relaxed font-light">
                 <p>
-                  Sonic Wisdom is an immersive exploration of the world's ancient sound traditions. 
-                  Using the Gemini Live API, you can have a real-time voice conversation about:
+                  Sonic Wisdom is an immersive exploration across multiple domains of knowledge. 
+                  Using the Gemini Live API, you can have real-time voice conversations across three primary themes:
                 </p>
                 <ul className="list-disc list-inside space-y-2">
-                  <li><span className="text-white">Norse Galdr:</span> The magic of sung runes.</li>
-                  <li><span className="text-white">Vedic Mantras:</span> Sacred utterances from the Vedas.</li>
-                  <li><span className="text-white">Sufi Dhikr:</span> The rhythmic remembrance of the divine.</li>
-                  <li><span className="text-white">Taoist Sounds:</span> The six healing sounds of the organs.</li>
+                  <li><span className="text-white">Sonic Wisdom:</span> Ancient sound traditions, Galdr, Mantras, and Dhikr.</li>
+                  <li><span className="text-white">Tech Explorer:</span> Cloudflare Serverless, AI, LLM inference, and coding.</li>
+                  <li><span className="text-white">Holistic Wellness:</span> Trauma prevention, Bioenergetics, and Body Work.</li>
                 </ul>
                 <p>
-                  Connect your microphone and speak naturally. The AI will respond with both voice and text.
+                  Switch themes in the settings panel and choose your conversation style—from a deep Sage to a curious Interviewer.
                 </p>
               </div>
               <button 

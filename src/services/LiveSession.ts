@@ -11,15 +11,15 @@ export class LiveSessionManager {
   private audioContext: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private stream: MediaStream | null = null;
-  private recordingDestination: MediaStreamAudioDestinationNode | null = null;
   private isConnected = false;
+  private speechRate = 1.0;
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({ apiKey });
   }
 
   async connect(callbacks: {
-    onMessage: (text: string) => void;
+    onMessage: (text: string, isUser: boolean) => void;
     onInterrupted: () => void;
     onError: (err: any) => void;
     onClose: () => void;
@@ -27,17 +27,20 @@ export class LiveSessionManager {
     voice: string;
     temperature: number;
     model?: string;
+    systemInstruction?: string;
+    speechRate?: number;
   }) {
+    this.speechRate = settings.speechRate || 1.0;
     try {
       this.session = await this.ai.live.connect({
-        model: settings.model || "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: settings.model || "gemini-3.1-flash-live-preview",
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.voice } },
           },
           temperature: settings.temperature,
-          systemInstruction: `You are an expert in linguistics, phonemes, and ancient sound traditions. 
+          systemInstruction: settings.systemInstruction || `You are an expert in linguistics, phonemes, and ancient sound traditions. 
           Your knowledge spans Norse culture (Galdr), Vedic culture (Mantras), Sufism (Dhikr), Taoism (Healing Sounds), and the cross-cultural significance of sound.
           Engage in deep, atmospheric conversations about how sound shapes reality and culture. 
           Keep responses concise but profound. Use the user's voice input to guide the exploration.`,
@@ -48,10 +51,11 @@ export class LiveSessionManager {
             this.startMic();
           },
           onmessage: async (message: LiveServerMessage) => {
+            // Handle model text output
             if (message.serverContent?.modelTurn?.parts) {
               const textPart = message.serverContent.modelTurn.parts.find(p => p.text);
               if (textPart?.text) {
-                callbacks.onMessage(textPart.text);
+                callbacks.onMessage(textPart.text, false);
               }
 
               const audioPart = message.serverContent.modelTurn.parts.find(p => p.inlineData);
@@ -60,6 +64,14 @@ export class LiveSessionManager {
               }
             }
 
+            // Handle transcriptions
+            if (message.serverContent?.modelTurn?.parts) {
+              // Some SDK versions might put transcription here
+            }
+
+            // The SDK might provide transcriptions in specific fields
+            // For now, we'll assume the onMessage callback handles the role
+            
             if (message.serverContent?.interrupted) {
               callbacks.onInterrupted();
               this.stopPlayback();
@@ -83,30 +95,21 @@ export class LiveSessionManager {
   sendText(text: string) {
     if (!this.session || !this.isConnected) return;
     
-    // The SDK's LiveSession object should have a send method for clientContent.
-    // If it's missing, we try sendRealtimeInput as a fallback or log the error.
     try {
-      if (typeof this.session.send === 'function') {
-        this.session.send({
-          clientContent: {
-            turns: [{
-              role: 'user',
-              parts: [{ text }]
-            }],
-            turnComplete: true
-          }
-        });
-      } else if (typeof this.session.sendRealtimeInput === 'function') {
-        // Fallback for some SDK versions where text might be sent via realtimeInput
-        this.session.sendRealtimeInput({
-          text
-        });
-      } else {
-        console.error("LiveSession object has no send or sendRealtimeInput method", this.session);
-      }
+      this.session.sendRealtimeInput({
+        text
+      });
     } catch (err) {
       console.error("Error sending text to Live session:", err);
     }
+  }
+
+  public getStream(): MediaStream | null {
+    return this.stream;
+  }
+
+  public getRecordingStream(): MediaStream | null {
+    return this.stream;
   }
 
   private async startMic() {
@@ -119,10 +122,6 @@ export class LiveSessionManager {
       // but standard practice is worklet. Let's assume we can use a simple processor.
       const source = this.audioContext.createMediaStreamSource(this.stream);
       const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-      // Create recording destination that mixes mic + AI audio
-      this.recordingDestination = this.audioContext.createMediaStreamDestination();
-      source.connect(this.recordingDestination); // mic → recording mix
 
       source.connect(processor);
       processor.connect(this.audioContext.destination);
@@ -146,7 +145,7 @@ export class LiveSessionManager {
         const base64Data = btoa(binary);
         
         this.session.sendRealtimeInput({
-          media: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
+          audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
         });
       };
     } catch (err) {
@@ -181,10 +180,8 @@ export class LiveSessionManager {
 
     const source = this.audioContext.createBufferSource();
     source.buffer = audioBuffer;
+    source.playbackRate.value = this.speechRate;
     source.connect(this.audioContext.destination);
-    if (this.recordingDestination) {
-      source.connect(this.recordingDestination); // AI audio → recording mix
-    }
 
     // Schedule playback for gapless audio
     const currentTime = this.audioContext.currentTime;
@@ -211,10 +208,6 @@ export class LiveSessionManager {
     this.nextStartTime = 0;
   }
 
-  getRecordingStream(): MediaStream | null {
-    return this.recordingDestination?.stream || null;
-  }
-
   disconnect() {
     if (this.session) {
       this.session.close();
@@ -226,7 +219,6 @@ export class LiveSessionManager {
     if (this.audioContext) {
       this.audioContext.close();
     }
-    this.recordingDestination = null;
     this.isConnected = false;
   }
 }
