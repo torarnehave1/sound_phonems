@@ -1,7 +1,12 @@
 const UPLOAD_URL = 'https://norwegian-transcription-worker.torarnehave.workers.dev/upload';
 const PORTFOLIO_URL = 'https://audio-portfolio-worker.torarnehave.workers.dev';
-const AI_ANALYZE_URL = 'https://api.vegvisr.org/ai-analyze';
-const USER_EMAIL = 'sonic-wisdom@vegvisr.org';
+
+function getStoredUser(): { email: string; user_id?: string | null } | null {
+  try {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  } catch { return null; }
+}
 
 export class ConversationRecorder {
   private mediaRecorder: MediaRecorder | null = null;
@@ -51,11 +56,18 @@ async function uploadAudioToR2(blob: Blob, fileName: string): Promise<{ r2Key: s
 }
 
 async function generateMetadata(transcript: string): Promise<{ title: string; summary: string; keywords: string[] }> {
-  const res = await fetch(AI_ANALYZE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt: `Analyze this conversation transcript and return a JSON object with:
+  const user = getStoredUser();
+  const userId = user?.user_id || user?.email || null;
+
+  try {
+    const res = await fetch('https://gemini.vegvisr.org/gemini-2.0-flash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        messages: [{
+          role: 'user',
+          content: `Analyze this conversation transcript and return a JSON object with:
 - "title": a short descriptive title (max 10 words)
 - "summary": a 2-3 sentence summary of what was discussed
 - "keywords": an array of 3-7 relevant keywords
@@ -64,13 +76,13 @@ Transcript:
 ${transcript.slice(0, 3000)}
 
 Return ONLY valid JSON, no markdown fencing.`
-    }),
-  });
-  if (!res.ok) throw new Error(`AI analyze failed: ${res.status}`);
-  const data = await res.json();
-  try {
-    // The API might return a JSON string in the 'response' field
-    const parsed = typeof data.response === 'string' ? JSON.parse(data.response) : data.response;
+        }]
+      }),
+    });
+    if (!res.ok) throw new Error(`Gemini analyze failed: ${res.status}`);
+    const data = await res.json() as any;
+    const text = data.choices?.[0]?.message?.content || data.response || '';
+    const parsed = typeof text === 'string' ? JSON.parse(text) : text;
     return {
       title: parsed.title || 'Sonic Wisdom Conversation',
       summary: parsed.summary || transcript.slice(0, 200),
@@ -87,14 +99,17 @@ async function saveToPortfolio(params: {
   title: string; summary: string; keywords: string[];
   category: string;
 }): Promise<{ recordingId: string; success: boolean }> {
+  const user = getStoredUser();
+  const userEmail = user?.email || 'sonic-wisdom@vegvisr.org';
+
   const res = await fetch(`${PORTFOLIO_URL}/save-recording`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-User-Email': USER_EMAIL,
+      'X-User-Email': userEmail,
     },
     body: JSON.stringify({
-      userEmail: USER_EMAIL,
+      userEmail,
       fileName: params.fileName,
       displayName: params.title,
       r2Key: params.r2Key,
@@ -106,8 +121,8 @@ async function saveToPortfolio(params: {
       category: params.category,
       audioFormat: 'webm',
       sampleRate: 48000,
-      aiService: 'cloudflare-ai',
-      aiModel: '@cf/meta/llama-3.1-8b-instruct',
+      aiService: 'gemini',
+      aiModel: 'gemini-2.0-flash',
     }),
   });
   if (!res.ok) throw new Error(`Portfolio save failed: ${res.status}`);
@@ -117,13 +132,9 @@ async function saveToPortfolio(params: {
 export async function saveConversation(blob: Blob, duration: number, transcript: string, category: string = 'Sonic Wisdom'): Promise<{ recordingId: string }> {
   const fileName = `sonic-wisdom-${Date.now()}.webm`;
 
-  // Upload audio to R2
   const { r2Key, audioUrl } = await uploadAudioToR2(blob, fileName);
-
-  // Generate AI metadata from transcript
   const { title, summary, keywords } = await generateMetadata(transcript);
 
-  // Save metadata to audio-portfolio
   const result = await saveToPortfolio({
     r2Key,
     r2Url: audioUrl,
