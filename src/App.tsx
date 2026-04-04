@@ -38,7 +38,6 @@ export default function App() {
   const [temperature, setTemperature] = useState<number>(0.7);
   const [conversationStyle, setConversationStyle] = useState<string>("sage");
   const [selectedTheme, setSelectedTheme] = useState<string>("sonic");
-  const [reflectionMode, setReflectionMode] = useState<boolean>(true);
   const [customInstructions, setCustomInstructions] = useState<string>("");
 
   const THEMES: Record<string, { label: string; topics: string; context: string; description: string }> = {
@@ -101,15 +100,6 @@ export default function App() {
       .replace("{{TOPICS}}", theme.topics)
       .replace("{{CONTEXT}}", theme.context);
 
-    if (reflectionMode) {
-      instruction += `\n\nCRITICAL CONVERSATIONAL PACE: The user is a native Norwegian speaker who values reflection, silence, and deep thought. 
-      Speak at a natural, measured pace. Allow for significant pauses between your thoughts. 
-      Do not rush to fill the silence; silence is a space for reflection. 
-      Acknowledge the cultural context of thoughtful, unhurried dialogue. 
-      If the user pauses, wait patiently for them to continue their thought. 
-      Your goal is to foster a space where wisdom can emerge from the quiet.`;
-    }
-
     return instruction;
   };
 
@@ -151,7 +141,7 @@ export default function App() {
     } catch (err: any) {
       setError(err.message || "Failed to initialize session.");
     }
-  }, [voice, temperature, conversationStyle, selectedTheme, reflectionMode, customInstructions]);
+  }, [voice, temperature, conversationStyle, selectedTheme, customInstructions]);
 
   const stopSession = useCallback(() => {
     if (session) {
@@ -324,19 +314,6 @@ export default function App() {
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px] text-white/80 focus:outline-none focus:border-orange-500/50 h-20 resize-none"
                 />
               )}
-            </div>
-
-            <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
-              <label className="text-[10px] uppercase tracking-widest text-white/40">Reflection Mode</label>
-              <button
-                onClick={() => setReflectionMode(!reflectionMode)}
-                className={`w-10 h-5 rounded-full relative transition-colors ${reflectionMode ? 'bg-orange-500' : 'bg-white/10'}`}
-              >
-                <motion.div
-                  animate={{ x: reflectionMode ? 20 : 2 }}
-                  className="absolute top-1 left-0 w-3 h-3 rounded-full bg-white shadow-sm"
-                />
-              </button>
             </div>
 
             <div className="space-y-2">
