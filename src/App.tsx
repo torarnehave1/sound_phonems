@@ -42,21 +42,42 @@ export default function App() {
   const [reflectionMode, setReflectionMode] = useState<boolean>(true);
   const [customInstructions, setCustomInstructions] = useState<string>("");
 
-  const THEMES: Record<string, { label: string; topics: string; context: string }> = {
+  const THEMES: Record<string, { label: string; topics: string; context: string; description: string }> = {
     sonic: {
       label: "Sonic Wisdom",
       topics: "linguistics, phonemes, and ancient sound traditions (Norse Galdr, Vedic Mantras, Sufism, Taoism)",
-      context: "Your knowledge spans the cross-cultural significance of sound and how it shapes reality."
+      context: "Your knowledge spans the cross-cultural significance of sound and how it shapes reality.",
+      description: "Explore the sacred phonemes of ancient traditions"
     },
     tech: {
       label: "Tech Explorer",
       topics: "technology, specifically Cloudflare Serverless, AI, LLM inference, and modern coding practices",
-      context: "You are at the cutting edge of software architecture and artificial intelligence."
+      context: "You are at the cutting edge of software architecture and artificial intelligence.",
+      description: "Deep dive into serverless, AI, and modern code"
     },
     wellness: {
       label: "Holistic Wellness",
       topics: "trauma prevention, bioenergetics, yoga, and holistic body work",
-      context: "You understand the deep connection between the body, mind, and nervous system."
+      context: "You understand the deep connection between the body, mind, and nervous system.",
+      description: "Journey through trauma prevention and body work"
+    },
+    knowledge: {
+      label: "Knowledge Management",
+      topics: "Organizational KM, SECI model (Nonaka & Takeuchi), KM cycles (Dalkir), knowledge flows (creation, retention, transfer, utilization), organizational learning, Communities of Practice (CoP), and AI-supported knowledge management (LLMs, semantic graphs)",
+      context: "You are an expert in organizational knowledge creation and dynamics. You draw from classics like Nonaka & Takeuchi's 'The Knowledge-Creating Company' and Dalkir's 'Knowledge Management in Theory and Practice'. You navigate between organizational, ecological, and techno-centric schools of thought, emphasizing the 'creative organization' and the deep connection between knowledge, culture, and power.",
+      description: "Master organizational innovation and knowledge cycles"
+    },
+    writing: {
+      label: "Book Writing",
+      topics: "creative writing, non-fiction structure, storytelling, and the publishing process",
+      context: "You are a seasoned editor and writing coach, helping authors find their voice and bring their stories to life.",
+      description: "Bring your stories to life with expert guidance"
+    },
+    cohesion: {
+      label: "Cohesion",
+      topics: "group cohesion, group dynamics, dimensions of cohesion (attractiveness, attraction, unity, teamwork), group development phases (Wheelan, Bion), and the relationship between cohesion, norms, and productivity",
+      context: "You are an expert in group dynamics and cohesion. You understand the forces that bind groups together—emotional bonds, perceived unity, and coordinated effort. You draw from theorists like Festinger, Yalom, Wheelan, and Bion. You emphasize that true community is the presence of deeper listening and that cohesion must be balanced with healthy norms and clear goals.",
+      description: "Explore the forces that bind groups together"
     }
   };
 
@@ -376,9 +397,7 @@ export default function App() {
             {isConnected ? "Listening to the Unseen..." : THEMES[selectedTheme].label}
           </motion.h2>
           <p className="text-white/40 font-light tracking-widest uppercase text-xs">
-            {selectedTheme === 'sonic' ? 'Explore the sacred phonemes of ancient traditions' : 
-             selectedTheme === 'tech' ? 'Deep dive into serverless, AI, and modern code' :
-             'Journey through trauma prevention and body work'}
+            {THEMES[selectedTheme].description}
           </p>
         </div>
 
@@ -523,12 +542,15 @@ export default function App() {
               <div className="space-y-4 text-white/60 leading-relaxed font-light">
                 <p>
                   Sonic Wisdom is an immersive exploration across multiple domains of knowledge. 
-                  Using the Gemini Live API, you can have real-time voice conversations across three primary themes:
+                  Using the Gemini Live API, you can have real-time voice conversations across several primary themes:
                 </p>
                 <ul className="list-disc list-inside space-y-2">
                   <li><span className="text-white">Sonic Wisdom:</span> Ancient sound traditions, Galdr, Mantras, and Dhikr.</li>
                   <li><span className="text-white">Tech Explorer:</span> Cloudflare Serverless, AI, LLM inference, and coding.</li>
                   <li><span className="text-white">Holistic Wellness:</span> Trauma prevention, Bioenergetics, and Body Work.</li>
+                  <li><span className="text-white">Knowledge Management:</span> Organizational KM, SECI model, and knowledge cycles.</li>
+                  <li><span className="text-white">Book Writing:</span> Creative writing, storytelling, and publishing.</li>
+                  <li><span className="text-white">Cohesion:</span> Group dynamics, unity, and the forces that bind teams.</li>
                 </ul>
                 <p>
                   Switch themes in the settings panel and choose your conversation style—from a deep Sage to a curious Interviewer.
