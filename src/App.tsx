@@ -102,11 +102,16 @@ export default function App() {
   };
 
   const getSystemInstruction = () => {
-    if (conversationStyle === 'custom') return customInstructions;
     const theme = THEMES[selectedTheme];
-    let instruction = STYLES[conversationStyle]
+    let instruction = conversationStyle === 'custom' ? customInstructions : STYLES[conversationStyle]
       .replace("{{TOPICS}}", theme.topics)
       .replace("{{CONTEXT}}", theme.context);
+
+    // Add strict anti-pondering instruction to prevent "thinking out loud" in the transcript
+    instruction += `\n\nCRITICAL: DO NOT output your internal reasoning, thoughts, or 'pondering' process. 
+    ONLY output the direct spoken response to the user. 
+    NEVER include meta-commentary about your decision-making or how you are reflecting on the user's input. 
+    Speak as the character directly and naturally.`;
 
     return instruction;
   };

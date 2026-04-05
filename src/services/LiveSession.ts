@@ -54,12 +54,28 @@ export class LiveSessionManager {
           onmessage: async (message: LiveServerMessage) => {
             // Handle model text output (direct or transcription)
             if (message.serverContent?.modelTurn?.parts) {
-              const textPart = message.serverContent.modelTurn.parts.find(p => p.text);
-              if (textPart?.text) {
-                callbacks.onMessage(textPart.text, false);
+              const parts = message.serverContent.modelTurn.parts;
+              
+              // Filter out parts that are explicitly marked as thoughts/thinking
+              // or parts that look like internal reasoning if they come alongside a response
+              const textParts = parts.filter(p => p.text && !(p as any).thought);
+              
+              for (const part of textParts) {
+                if (part.text) {
+                  // Heuristic: If the text starts with common "thinking" markers and is long, 
+                  // it might be a thinking part that wasn't correctly tagged.
+                  const isLikelyThinking = part.text.length > 50 && 
+                    (part.text.startsWith("I'm pondering") || 
+                     part.text.startsWith("Reflecting on") || 
+                     part.text.startsWith("Thinking about"));
+                  
+                  if (!isLikelyThinking) {
+                    callbacks.onMessage(part.text, false);
+                  }
+                }
               }
 
-              const audioPart = message.serverContent.modelTurn.parts.find(p => p.inlineData);
+              const audioPart = parts.find(p => p.inlineData);
               if (audioPart?.inlineData?.data) {
                 this.playAudio(audioPart.inlineData.data);
               }
