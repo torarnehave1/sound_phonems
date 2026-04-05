@@ -52,45 +52,80 @@ export class LiveSessionManager {
             this.startMic();
           },
           onmessage: async (message: LiveServerMessage) => {
-            // Handle model text output (direct or transcription)
-            if (message.serverContent?.modelTurn?.parts) {
-              const parts = message.serverContent.modelTurn.parts;
+            // Helper to filter out AI "thoughts" or "reasoning" that slips into the text stream
+            const filterThought = (text: string): string | null => {
+              if (!text) return null;
               
-              // Filter out parts that are explicitly marked as thoughts/thinking
-              // or parts that look like internal reasoning if they come alongside a response
-              const textParts = parts.filter(p => p.text && !(p as any).thought);
+              // Patterns that indicate internal reasoning/meta-commentary
+              const thoughtPatterns = [
+                /^Considering\s+/i,
+                /^I've\s+been\s+examining/i,
+                /^Acknowledge\s+/i,
+                /^I\s+acknowledge/i,
+                /^I'll\s+respond/i,
+                /^I'll\s+frame/i,
+                /^I\s+interpret\s+this\s+as/i,
+                /^My\s+attention\s+is\s+drawn\s+to/i,
+                /^Given\s+the\s+user's/i,
+                /^I'm\s+pondering/i,
+                /^Reflecting\s+on/i,
+                /^Thinking\s+about/i
+              ];
+
+              // If the text is long and starts with one of these, it's likely a thought block
+              if (text.length > 30 && thoughtPatterns.some(pattern => pattern.test(text))) {
+                console.log("Filtered out AI thought block:", text);
+                return null;
+              }
               
-              for (const part of textParts) {
-                if (part.text) {
-                  // Heuristic: If the text starts with common "thinking" markers and is long, 
-                  // it might be a thinking part that wasn't correctly tagged.
-                  const isLikelyThinking = part.text.length > 50 && 
-                    (part.text.startsWith("I'm pondering") || 
-                     part.text.startsWith("Reflecting on") || 
-                     part.text.startsWith("Thinking about"));
-                  
-                  if (!isLikelyThinking) {
-                    callbacks.onMessage(part.text, false);
+              return text;
+            };
+
+            if (message.serverContent) {
+              const sc = message.serverContent as any;
+
+              // Handle top-level transcription fields
+              if (sc.outputTranscription?.text) {
+                const filtered = filterThought(sc.outputTranscription.text);
+                if (filtered) {
+                  console.log(">>> AI TRANSCRIPTION:", filtered);
+                  callbacks.onMessage(filtered, false);
+                }
+              }
+              
+              if (sc.inputTranscription?.text) {
+                console.log(">>> USER TRANSCRIPTION:", sc.inputTranscription.text);
+                callbacks.onMessage(sc.inputTranscription.text, true);
+              }
+
+              // Handle model turn (AI speech/text parts)
+              if (sc.modelTurn?.parts) {
+                for (const part of sc.modelTurn.parts) {
+                  if (part.text) {
+                    const filtered = filterThought(part.text);
+                    if (filtered) {
+                      console.log(">>> AI TEXT PART:", filtered);
+                      callbacks.onMessage(filtered, false);
+                    }
+                  } else if (part.inlineData) {
+                    this.playAudio(part.inlineData.data);
                   }
                 }
               }
 
-              const audioPart = parts.find(p => p.inlineData);
-              if (audioPart?.inlineData?.data) {
-                this.playAudio(audioPart.inlineData.data);
-              }
-            }
-
-            // Handle user transcription
-            const userTurn = (message.serverContent as any)?.userTurn;
-            if (userTurn?.parts) {
-              const textPart = userTurn.parts.find((p: any) => p.text);
-              if (textPart?.text) {
-                callbacks.onMessage(textPart.text, true);
+              // Handle user turn (User speech transcription parts)
+              if (sc.userTurn?.parts) {
+                for (const part of sc.userTurn.parts) {
+                  if (part.text) {
+                    console.log(">>> USER TEXT PART:", part.text);
+                    callbacks.onMessage(part.text, true);
+                  }
+                }
               }
             }
             
             if (message.serverContent?.interrupted) {
+              console.log("Session Interrupted");
               callbacks.onInterrupted();
               this.stopPlayback();
             }
