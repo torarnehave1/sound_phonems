@@ -114,7 +114,7 @@ export default function App() {
       await newSession.connect({
         onMessage: (text, isUser) => {
           setTranscript(prev => {
-            const prefix = isUser ? "\n\n**You:** " : "";
+            const prefix = isUser ? "\n\n**You:** " : "\n\n**Sonic Wisdom:** ";
             return prev + prefix + text;
           });
         },
@@ -199,7 +199,7 @@ export default function App() {
     if (!inputText.trim() || !session || !isConnected) return;
     
     session.sendText(inputText);
-    setTranscript(prev => prev + "\n\n**You:** " + inputText + "\n\n");
+    setTranscript(prev => prev + "\n\n**You:** " + inputText);
     setInputText("");
   };
 

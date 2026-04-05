@@ -59,6 +59,14 @@ async function generateMetadata(transcript: string): Promise<{ title: string; su
   const user = getStoredUser();
   const userId = user?.user_id || user?.email || null;
 
+  if (!transcript || transcript.trim().length < 10) {
+    return { 
+      title: 'Brief Interaction', 
+      summary: 'The conversation was too short to generate a detailed summary.', 
+      keywords: ['sonic-wisdom', 'short'] 
+    };
+  }
+
   try {
     const res = await fetch('https://gemini.vegvisr.org/gemini-2.0-flash', {
       method: 'POST',
@@ -73,23 +81,48 @@ async function generateMetadata(transcript: string): Promise<{ title: string; su
 - "keywords": an array of 3-7 relevant keywords
 
 Transcript:
-${transcript.slice(0, 3000)}
+${transcript.slice(0, 5000)}
 
-Return ONLY valid JSON, no markdown fencing.`
+Return ONLY valid JSON. If the transcript is in another language, provide the summary in that language but keep the JSON keys as "title", "summary", and "keywords".`
         }]
       }),
     });
     if (!res.ok) throw new Error(`Gemini analyze failed: ${res.status}`);
     const data = await res.json() as any;
-    const text = data.choices?.[0]?.message?.content || data.response || '';
-    const parsed = typeof text === 'string' ? JSON.parse(text) : text;
-    return {
-      title: parsed.title || 'Sonic Wisdom Conversation',
-      summary: parsed.summary || transcript.slice(0, 200),
-      keywords: parsed.keywords || ['sonic-wisdom']
+    let text = data.choices?.[0]?.message?.content || data.response || '';
+    
+    // Clean up response if it has markdown fencing
+    if (text.includes('```json')) {
+      text = text.split('```json')[1].split('```')[0].trim();
+    } else if (text.includes('```')) {
+      const parts = text.split('```');
+      if (parts.length >= 3) {
+        text = parts[1].trim();
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(text);
+      return {
+        title: parsed.title || 'Sonic Wisdom Conversation',
+        summary: parsed.summary || transcript.slice(0, 300),
+        keywords: Array.isArray(parsed.keywords) ? parsed.keywords : ['sonic-wisdom']
+      };
+    } catch (parseErr) {
+      console.warn("Failed to parse Gemini JSON, using raw text fallback", parseErr);
+      return {
+        title: 'Sonic Wisdom Conversation',
+        summary: text.slice(0, 500) || transcript.slice(0, 300),
+        keywords: ['sonic-wisdom']
+      };
+    }
+  } catch (err) {
+    console.error("Metadata generation error:", err);
+    return { 
+      title: 'Sonic Wisdom Conversation', 
+      summary: transcript.slice(0, 300) + (transcript.length > 300 ? '...' : ''), 
+      keywords: ['sonic-wisdom'] 
     };
-  } catch {
-    return { title: 'Sonic Wisdom Conversation', summary: transcript.slice(0, 200), keywords: ['sonic-wisdom'] };
   }
 }
 

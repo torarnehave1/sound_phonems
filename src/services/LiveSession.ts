@@ -38,6 +38,8 @@ export class LiveSessionManager {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.voice } },
           },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
           temperature: settings.temperature,
           systemInstruction: settings.systemInstruction || `You are an expert in linguistics, phonemes, and ancient sound traditions. 
           Your knowledge spans Norse culture (Galdr), Vedic culture (Mantras), Sufism (Dhikr), Taoism (Healing Sounds), and the cross-cultural significance of sound.
@@ -50,7 +52,7 @@ export class LiveSessionManager {
             this.startMic();
           },
           onmessage: async (message: LiveServerMessage) => {
-            // Handle model text output
+            // Handle model text output (direct or transcription)
             if (message.serverContent?.modelTurn?.parts) {
               const textPart = message.serverContent.modelTurn.parts.find(p => p.text);
               if (textPart?.text) {
@@ -63,13 +65,14 @@ export class LiveSessionManager {
               }
             }
 
-            // Handle transcriptions
-            if (message.serverContent?.modelTurn?.parts) {
-              // Some SDK versions might put transcription here
+            // Handle user transcription
+            const userTurn = (message.serverContent as any)?.userTurn;
+            if (userTurn?.parts) {
+              const textPart = userTurn.parts.find((p: any) => p.text);
+              if (textPart?.text) {
+                callbacks.onMessage(textPart.text, true);
+              }
             }
-
-            // The SDK might provide transcriptions in specific fields
-            // For now, we'll assume the onMessage callback handles the role
             
             if (message.serverContent?.interrupted) {
               callbacks.onInterrupted();
