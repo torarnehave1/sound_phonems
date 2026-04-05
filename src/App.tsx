@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
@@ -26,6 +26,14 @@ export default function App() {
   const [showInfo, setShowInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [inputText, setInputText] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll transcript
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [transcript]);
   
   // Recording
   const [isRecording, setIsRecording] = useState(false);
@@ -215,10 +223,30 @@ export default function App() {
     setInputText("");
   };
 
+  const downloadTranscript = () => {
+    if (!transcript) return;
+    const blob = new Blob([transcript.replace(/\*\*/g, '')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sonic-wisdom-transcript-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const clearTranscript = () => {
+    if (window.confirm("Clear the current conversation transcript?")) {
+      setTranscript("");
+      lastSpeakerRef.current = null;
+    }
+  };
+
   return (
     <AuthGate>
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
-      <div className="atmosphere" />
+    <div className="relative min-h-screen flex flex-col items-center p-6 overflow-y-auto">
+      <div className="atmosphere fixed inset-0 pointer-events-none" />
       
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 p-8 flex justify-between items-center z-10">
@@ -351,7 +379,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="w-full max-w-2xl flex flex-col items-center gap-12 z-10">
+      <main className="w-full max-w-3xl flex flex-col items-center gap-8 z-10 py-24 px-6 min-h-screen">
         <div className="text-center space-y-4">
           <motion.h2 
             key={selectedTheme}
@@ -423,36 +451,70 @@ export default function App() {
         </div>
 
         {/* Transcription Area */}
-        <div className="w-full min-h-[200px] flex flex-col items-center gap-6">
+        <div className="w-full flex flex-col items-center gap-6">
           <AnimatePresence mode="wait">
-            {isConnected ? (
+            {isConnected || transcript ? (
               <motion.div
                 key="transcript"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="glass rounded-3xl p-8 w-full text-center space-y-6"
+                className="glass rounded-3xl p-6 md:p-8 w-full space-y-6 flex flex-col max-h-[60vh]"
               >
-                <div className="markdown-body text-xl md:text-2xl font-serif leading-relaxed text-white/80 italic">
-                  <Markdown>{transcript || "Speak or type to begin your journey..."}</Markdown>
+                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-2 text-white/40 text-[10px] uppercase tracking-widest">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Sacred Transcription</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {transcript && (
+                      <>
+                        <button 
+                          onClick={downloadTranscript}
+                          className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                          title="Download Transcript"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={clearTranscript}
+                          className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-red-400 transition-all"
+                          title="Clear Transcript"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                <form onSubmit={handleSendText} className="relative w-full max-w-md mx-auto">
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Type a sacred word..."
-                    className="w-full bg-white/5 border border-white/10 rounded-full py-3 px-6 pr-12 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/20"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputText.trim()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-white/20 transition-all"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                  </button>
-                </form>
+                <div 
+                  ref={scrollRef}
+                  className="flex-1 overflow-y-auto pr-4 custom-scrollbar"
+                >
+                  <div className="markdown-body text-lg md:text-xl font-serif leading-relaxed text-white/80 italic">
+                    <Markdown>{transcript || "Speak or type to begin your journey..."}</Markdown>
+                  </div>
+                </div>
+
+                {isConnected && (
+                  <form onSubmit={handleSendText} className="relative w-full max-w-md mx-auto pt-4 border-t border-white/5">
+                    <input
+                      type="text"
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      placeholder="Type a sacred word..."
+                      className="w-full bg-white/5 border border-white/10 rounded-full py-3 px-6 pr-12 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/20"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!inputText.trim()}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-white/20 transition-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                  </form>
+                )}
               </motion.div>
             ) : history.length > 0 ? (
               <motion.div
