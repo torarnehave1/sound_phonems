@@ -103,6 +103,8 @@ export default function App() {
     return instruction;
   };
 
+  const lastSpeakerRef = useRef<string | null>(null);
+
   const startSession = useCallback(async () => {
     try {
       setError(null);
@@ -110,12 +112,18 @@ export default function App() {
 
       const newSession = new LiveSessionManager(config.apiKey);
       setSession(newSession);
+      lastSpeakerRef.current = null;
 
       await newSession.connect({
         onMessage: (text, isUser) => {
           setTranscript(prev => {
-            const prefix = isUser ? "\n\n**You:** " : "\n\n**Sonic Wisdom:** ";
-            return prev + prefix + text;
+            const speaker = isUser ? "You" : "Sonic Wisdom";
+            if (lastSpeakerRef.current !== speaker) {
+              lastSpeakerRef.current = speaker;
+              const prefix = `\n\n**${speaker}:** `;
+              return prev + prefix + text;
+            }
+            return prev + " " + text;
           });
         },
         onInterrupted: () => {
@@ -142,25 +150,6 @@ export default function App() {
       setError(err.message || "Failed to initialize session.");
     }
   }, [voice, temperature, conversationStyle, selectedTheme, customInstructions]);
-
-  const stopSession = useCallback(() => {
-    if (session) {
-      session.disconnect();
-      setSession(null);
-    }
-    setIsConnected(false);
-    if (transcript) {
-      setHistory(prev => [transcript, ...prev].slice(0, 5));
-    }
-  }, [session, transcript]);
-
-  const toggleConnection = () => {
-    if (isConnected) {
-      stopSession();
-    } else {
-      startSession();
-    }
-  };
 
   const toggleRecording = useCallback(async () => {
     if (!session || !isConnected) return;
@@ -192,7 +181,30 @@ export default function App() {
       setIsRecording(true);
       setSaveStatus(null);
     }
-  }, [session, isConnected, isRecording, transcript]);
+  }, [session, isConnected, isRecording, transcript, selectedTheme]);
+
+  const stopSession = useCallback(async () => {
+    if (isRecording) {
+      await toggleRecording();
+    }
+
+    if (session) {
+      session.disconnect();
+      setSession(null);
+    }
+    setIsConnected(false);
+    if (transcript) {
+      setHistory(prev => [transcript, ...prev].slice(0, 5));
+    }
+  }, [session, transcript, isRecording, toggleRecording]);
+
+  const toggleConnection = async () => {
+    if (isConnected) {
+      await stopSession();
+    } else {
+      startSession();
+    }
+  };
 
   const handleSendText = (e: React.FormEvent) => {
     e.preventDefault();
