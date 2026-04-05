@@ -11,6 +11,8 @@ export class LiveSessionManager {
   private audioContext: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private stream: MediaStream | null = null;
+  private recordingDestination: MediaStreamAudioDestinationNode | null = null;
+  private recordingMixer: GainNode | null = null;
   private isConnected = false;
 
   constructor(apiKey: string) {
@@ -106,7 +108,7 @@ export class LiveSessionManager {
   }
 
   public getRecordingStream(): MediaStream | null {
-    return this.stream;
+    return this.recordingDestination ? this.recordingDestination.stream : this.stream;
   }
 
   private async startMic() {
@@ -114,14 +116,33 @@ export class LiveSessionManager {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.audioContext = new AudioContext({ sampleRate: 16000 });
       
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+      
+      // Create a destination for recording that combines mic and AI audio
+      this.recordingDestination = this.audioContext.createMediaStreamDestination();
+      this.recordingMixer = this.audioContext.createGain();
+      this.recordingMixer.gain.value = 1.0;
+      this.recordingMixer.connect(this.recordingDestination);
+
       // Note: In a real app, we'd use a worklet for better performance.
-      // For this demo, we'll use a ScriptProcessor or similar if worklet isn't ready,
-      // but standard practice is worklet. Let's assume we can use a simple processor.
       const source = this.audioContext.createMediaStreamSource(this.stream);
       const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       source.connect(processor);
-      processor.connect(this.audioContext.destination);
+      
+      // Connect mic to recording mixer
+      const micRecordingGain = this.audioContext.createGain();
+      micRecordingGain.gain.value = 1.0;
+      source.connect(micRecordingGain);
+      micRecordingGain.connect(this.recordingMixer);
+      
+      // Connect processor to destination via silent gain to keep it alive
+      const silentGain = this.audioContext.createGain();
+      silentGain.gain.value = 0;
+      processor.connect(silentGain);
+      silentGain.connect(this.audioContext.destination);
 
       processor.onaudioprocess = (e) => {
         if (!this.isConnected || !this.session) return;
@@ -156,6 +177,10 @@ export class LiveSessionManager {
   private async playAudio(base64Data: string) {
     if (!this.audioContext) return;
 
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+
     // Decode base64 to Uint8Array
     const binaryString = atob(base64Data);
     const bytes = new Uint8Array(binaryString.length);
@@ -178,6 +203,14 @@ export class LiveSessionManager {
     const source = this.audioContext.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(this.audioContext.destination);
+    
+    // Connect AI audio to recording mixer if it exists
+    if (this.recordingMixer) {
+      const aiRecordingGain = this.audioContext.createGain();
+      aiRecordingGain.gain.value = 1.0;
+      source.connect(aiRecordingGain);
+      aiRecordingGain.connect(this.recordingMixer);
+    }
 
     // Schedule playback for gapless audio
     const currentTime = this.audioContext.currentTime;
