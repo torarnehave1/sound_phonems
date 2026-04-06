@@ -125,7 +125,7 @@ export default function App() {
 
   const lastSpeakerRef = useRef<string | null>(null);
 
-  const isDevBypass = true; // Set to true to bypass login for testing in AI Studio
+  const isDevBypass = false; // Set to true to bypass login for testing in AI Studio
 
   const startSession = useCallback(async () => {
     try {
