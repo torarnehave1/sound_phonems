@@ -447,9 +447,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-orange-500/20 backdrop-blur-sm pointer-events-none"
           >
-            <div className="bg-black/60 px-8 py-4 rounded-full border border-orange-500/50 flex items-center gap-3">
+            <div className="bg-white/80 px-8 py-4 rounded-full border border-orange-500/50 flex items-center gap-3 shadow-xl">
               <Upload className="w-6 h-6 text-orange-500 animate-bounce" />
-              <span className="text-white font-serif italic text-xl">Drop to share your vision...</span>
+              <span className="text-gray-900 font-serif italic text-xl">Drop to share your vision...</span>
             </div>
           </motion.div>
         )}
@@ -459,21 +459,21 @@ export default function App() {
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 p-8 flex justify-between items-center z-10">
         <div className="flex items-center gap-3">
-          <img src="https://favicons.vegvisr.org/favicons/1772468624359-1-1772468669531-512x512.png" alt="Sensus" className="w-[100px] h-[100px] rounded-full shadow-lg shadow-orange-900/20" />
-          <h1 className="text-2xl font-serif font-light tracking-widest uppercase">Sensus</h1>
+          <img src="https://favicons.vegvisr.org/favicons/1775486312807-1-1775486316188-512x512.png" alt="Sensus" className="w-[100px] h-[100px] rounded-full shadow-lg shadow-orange-500/10" />
+          <h1 className="text-2xl font-serif font-light tracking-widest uppercase text-gray-900">Sensus</h1>
         </div>
         
         <div className="flex gap-4">
           {!isDevBypass && <UserBadge />}
           <button 
             onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-full transition-colors ${showSettings ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'}`}
+            className={`p-2 rounded-full transition-colors ${showSettings ? 'bg-black/10 text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
           >
             <Sparkles className="w-5 h-5" />
           </button>
           <button 
             onClick={() => setShowInfo(!showInfo)}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+            className="p-2 rounded-full hover:bg-black/5 transition-colors text-gray-500 hover:text-gray-900"
           >
             <Info className="w-5 h-5" />
           </button>
@@ -490,7 +490,7 @@ export default function App() {
             className="absolute top-24 right-8 z-20 glass p-6 rounded-2xl w-64 space-y-4"
           >
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/40">Voice Presence</label>
+              <label className="text-[10px] uppercase tracking-widest text-gray-400">Voice Presence</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'Kore', label: 'Kore (F)' },
@@ -503,8 +503,8 @@ export default function App() {
                     onClick={() => setVoice(v.id)}
                     className={`text-xs py-2 rounded-lg border transition-all ${
                       voice === v.id 
-                        ? 'bg-white text-black border-white' 
-                        : 'border-white/10 text-white/60 hover:border-white/30'
+                        ? 'bg-gray-900 text-white border-gray-900' 
+                        : 'border-black/10 text-gray-600 hover:border-black/20'
                     }`}
                   >
                     {v.label}
@@ -514,7 +514,7 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/40">Theme</label>
+              <label className="text-[10px] uppercase tracking-widest text-gray-400">Theme</label>
               <div className="grid grid-cols-1 gap-2">
                 {Object.entries(THEMES).map(([id, theme]) => (
                   <button
@@ -523,7 +523,7 @@ export default function App() {
                     className={`text-[10px] py-2 px-3 rounded-lg border transition-all text-left ${
                       selectedTheme === id 
                         ? 'bg-orange-500 text-white border-orange-500' 
-                        : 'border-white/10 text-white/60 hover:border-white/30'
+                        : 'border-black/10 text-gray-600 hover:border-black/20'
                     }`}
                   >
                     {theme.label}
@@ -533,7 +533,7 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/40">Conversation Style</label>
+              <label className="text-[10px] uppercase tracking-widest text-gray-400">Conversation Style</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'sage', label: 'Sage' },
@@ -547,7 +547,7 @@ export default function App() {
                     className={`text-[10px] py-1.5 rounded-lg border transition-all ${
                       conversationStyle === s.id 
                         ? 'bg-orange-500 text-white border-orange-500' 
-                        : 'border-white/10 text-white/60 hover:border-white/30'
+                        : 'border-black/10 text-gray-600 hover:border-black/20'
                     }`}
                   >
                     {s.label}
@@ -559,15 +559,15 @@ export default function App() {
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   placeholder="Define your own rules..."
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[10px] text-white/80 focus:outline-none focus:border-orange-500/50 h-20 resize-none"
+                  className="w-full bg-black/5 border border-black/10 rounded-lg p-2 text-[10px] text-gray-800 focus:outline-none focus:border-orange-500/50 h-20 resize-none"
                 />
               )}
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-[10px] uppercase tracking-widest text-white/40">Temperature</label>
-                <span className="text-[10px] text-white/60">{temperature.toFixed(1)}</span>
+                <label className="text-[10px] uppercase tracking-widest text-gray-400">Temperature</label>
+                <span className="text-[10px] text-gray-600">{temperature.toFixed(1)}</span>
               </div>
               <input 
                 type="range" 
@@ -578,7 +578,7 @@ export default function App() {
                 onChange={(e) => setTemperature(parseFloat(e.target.value))}
                 className="w-full accent-orange-500"
               />
-              <p className="text-[8px] text-white/20 leading-tight">
+              <p className="text-[8px] text-gray-400 leading-tight">
                 Higher temperature leads to more creative and varied responses.
               </p>
             </div>
@@ -593,11 +593,11 @@ export default function App() {
             key={selectedTheme}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-6xl font-serif font-light italic text-white/90"
+            className="text-4xl md:text-6xl font-serif font-light italic text-gray-900"
           >
             {isConnected ? "Listening to the Unseen..." : THEMES[selectedTheme].label}
           </motion.h2>
-          <p className="text-white/40 font-light tracking-widest uppercase text-xs">
+          <p className="text-gray-400 font-light tracking-widest uppercase text-xs">
             {THEMES[selectedTheme].description}
           </p>
         </div>
@@ -620,8 +620,8 @@ export default function App() {
               onClick={toggleConnection}
               className={`relative z-10 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
                 isConnected
-                  ? 'bg-white text-black scale-110 shadow-[0_0_50px_rgba(255,255,255,0.2)]'
-                  : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
+                  ? 'bg-gray-900 text-white scale-110 shadow-[0_0_50px_rgba(0,0,0,0.1)]'
+                  : 'bg-black/5 text-gray-900 hover:bg-black/10 border border-black/10'
               }`}
             >
               {isConnected ? <Mic className="w-8 h-8" /> : <MicOff className="w-8 h-8 opacity-50" />}
@@ -635,8 +635,8 @@ export default function App() {
               disabled={isSaving}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-all ${
                 isRecording
-                  ? 'bg-red-500/20 border border-red-500/50 text-red-300 hover:bg-red-500/30'
-                  : 'bg-white/5 border border-white/10 text-white/60 hover:text-white hover:border-white/30'
+                  ? 'bg-red-500/10 border border-red-500/30 text-red-600 hover:bg-red-500/20'
+                  : 'bg-black/5 border border-black/10 text-gray-500 hover:text-gray-900 hover:border-black/20'
               }`}
             >
               {isSaving ? (
@@ -652,7 +652,7 @@ export default function App() {
 
           {/* Save Status */}
           {saveStatus && !isSaving && (
-            <p className="text-xs text-emerald-400/80 tracking-widest uppercase">{saveStatus}</p>
+            <p className="text-xs text-emerald-600 tracking-widest uppercase">{saveStatus}</p>
           )}
 
           <Visualizer isActive={isConnected} />
@@ -669,8 +669,8 @@ export default function App() {
                 exit={{ opacity: 0 }}
                 className="glass rounded-3xl p-6 md:p-8 w-full space-y-6 flex flex-col max-h-[60vh]"
               >
-                <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                  <div className="flex items-center gap-2 text-white/40 text-[10px] uppercase tracking-widest">
+                <div className="flex justify-between items-center border-b border-black/5 pb-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-[10px] uppercase tracking-widest">
                     <Sparkles className="w-3 h-3" />
                     <span>Sacred Transcription</span>
                   </div>
@@ -679,14 +679,14 @@ export default function App() {
                       <>
                         <button 
                           onClick={downloadTranscript}
-                          className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                          className="p-2 rounded-full hover:bg-black/5 text-gray-400 hover:text-gray-900 transition-all"
                           title="Download Transcript"
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={clearTranscript}
-                          className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-red-400 transition-all"
+                          className="p-2 rounded-full hover:bg-black/5 text-gray-400 hover:text-red-500 transition-all"
                           title="Clear Transcript"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -700,20 +700,20 @@ export default function App() {
                   ref={scrollRef}
                   className="flex-1 overflow-y-auto pr-4 custom-scrollbar"
                 >
-                  <div className="markdown-body text-lg md:text-xl font-serif leading-relaxed text-white/80 italic">
+                  <div className="markdown-body text-lg md:text-xl font-serif leading-relaxed text-gray-800 italic">
                     <Markdown>{transcript || "Speak or type to begin your journey..."}</Markdown>
                   </div>
                 </div>
 
                 {isConnected && (
-                  <div className="w-full max-w-md mx-auto pt-4 border-t border-white/5 space-y-4">
+                  <div className="w-full max-w-md mx-auto pt-4 border-t border-black/5 space-y-4">
                     <form onSubmit={handleSendText} className="relative w-full">
                       <input
                         type="text"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                         placeholder="Type a sacred word..."
-                        className="w-full bg-white/5 border border-white/10 rounded-full py-3 px-6 pr-24 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/20"
+                        className="w-full bg-black/5 border border-black/10 rounded-full py-3 px-6 pr-24 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-gray-400 text-gray-900"
                       />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <input 
@@ -727,7 +727,7 @@ export default function App() {
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={isUploading}
-                          className="p-2 rounded-full text-white/40 hover:text-white transition-all disabled:opacity-30"
+                          className="p-2 rounded-full text-gray-400 hover:text-gray-900 transition-all disabled:opacity-30"
                           title="Upload image"
                         >
                           {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
@@ -735,7 +735,7 @@ export default function App() {
                         <button
                           type="submit"
                           disabled={!inputText.trim()}
-                          className="p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-white/20 transition-all"
+                          className="p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-gray-300 transition-all"
                         >
                           <Sparkles className="w-4 h-4" />
                         </button>
@@ -751,12 +751,12 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="w-full space-y-6"
               >
-                <div className="flex items-center gap-2 text-white/30 text-xs uppercase tracking-widest mb-4">
+                <div className="flex items-center gap-2 text-gray-400 text-xs uppercase tracking-widest mb-4">
                   <History className="w-3 h-3" />
                   <span>Recent Echoes</span>
                 </div>
                 {history.map((item, i) => (
-                  <div key={i} className="text-white/40 font-serif italic text-lg border-l border-white/10 pl-6 py-2">
+                  <div key={i} className="text-gray-500 font-serif italic text-lg border-l border-black/10 pl-6 py-2">
                     {item.slice(0, 150)}...
                   </div>
                 ))}
@@ -766,7 +766,7 @@ export default function App() {
                 key="empty"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-center space-y-2 text-white/20"
+                className="text-center space-y-2 text-gray-300"
               >
                 <Sparkles className="w-6 h-6 mx-auto mb-4 opacity-50" />
                 <p>Ask about Norse Galdr, Vedic Mantras, or the Sufi Dhikr.</p>
@@ -784,7 +784,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-white/60 backdrop-blur-md"
             onClick={() => setShowInfo(false)}
           >
             <motion.div
@@ -793,27 +793,27 @@ export default function App() {
               className="glass max-w-md w-full p-8 rounded-3xl space-y-6"
               onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-2xl font-serif">About Sensus</h3>
-              <div className="space-y-4 text-white/60 leading-relaxed font-light">
+              <h3 className="text-2xl font-serif text-gray-900">About Sensus</h3>
+              <div className="space-y-4 text-gray-600 leading-relaxed font-light">
                 <p>
                   Sensus is an immersive exploration across multiple domains of knowledge. 
                   Using the Gemini Live API, you can have real-time voice conversations across several primary themes:
                 </p>
-                <ul className="list-disc list-inside space-y-2">
-                  <li><span className="text-white">Sonic Traditions:</span> Ancient sound traditions, Galdr, Mantras, and Dhikr.</li>
-                  <li><span className="text-white">Tech Explorer:</span> Cloudflare Serverless, AI, LLM inference, and coding.</li>
-                  <li><span className="text-white">Holistic Wellness:</span> Trauma prevention, Bioenergetics, and Body Work.</li>
-                  <li><span className="text-white">Knowledge Management:</span> Organizational KM, SECI model, and knowledge cycles.</li>
-                  <li><span className="text-white">Book Writing:</span> Creative writing, storytelling, and publishing.</li>
-                  <li><span className="text-white">Cohesion:</span> Group dynamics, unity, and the forces that bind teams.</li>
+                <ul className="list-disc list-inside space-y-2 text-gray-700">
+                  <li><span className="text-gray-900 font-medium">Sonic Traditions:</span> Ancient sound traditions, Galdr, Mantras, and Dhikr.</li>
+                  <li><span className="text-gray-900 font-medium">Tech Explorer:</span> Cloudflare Serverless, AI, LLM inference, and coding.</li>
+                  <li><span className="text-gray-900 font-medium">Holistic Wellness:</span> Trauma prevention, Bioenergetics, and Body Work.</li>
+                  <li><span className="text-gray-900 font-medium">Knowledge Management:</span> Organizational KM, SECI model, and knowledge cycles.</li>
+                  <li><span className="text-gray-900 font-medium">Book Writing:</span> Creative writing, storytelling, and publishing.</li>
+                  <li><span className="text-gray-900 font-medium">Cohesion:</span> Group dynamics, unity, and the forces that bind teams.</li>
                 </ul>
                 <p>
-                  Switch themes in the settings panel and choose your conversation style—from a deep Sage to a curious Interviewer.
+                  Sensus can also <span className="text-orange-600 font-medium italic">see</span>. Drag and drop images to discuss them in real-time.
                 </p>
               </div>
               <button 
                 onClick={() => setShowInfo(false)}
-                className="w-full py-4 rounded-2xl bg-white text-black font-medium hover:bg-orange-50 transition-colors"
+                className="w-full py-4 rounded-2xl bg-gray-900 text-white font-medium hover:bg-black transition-colors"
               >
                 Begin Journey
               </button>
@@ -838,7 +838,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="absolute bottom-8 text-white/10 text-[10px] uppercase tracking-[0.3em]">
+      <footer className="absolute bottom-8 text-gray-300 text-[10px] uppercase tracking-[0.3em]">
         Resonating across cultures & traditions
       </footer>
     </div>

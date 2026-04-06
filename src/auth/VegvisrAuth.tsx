@@ -38,52 +38,52 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#1a0800]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#fcf8f5]">
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-8 shadow-2xl backdrop-blur-xl"
+        className="w-full max-w-md bg-white border border-black/5 rounded-2xl p-8 shadow-2xl shadow-orange-500/5 backdrop-blur-xl"
       >
         <div className="flex justify-center mb-8">
           <img
-            src="https://favicons.vegvisr.org/favicons/1772468624359-1-1772468669531-512x512.png"
-            alt="Sonic Wisdom"
-            className="w-20 h-20 rounded-full shadow-lg shadow-orange-900/40"
+            src="https://favicons.vegvisr.org/favicons/1775486312807-1-1775486316188-512x512.png"
+            alt="Sensus"
+            className="w-20 h-20 rounded-full shadow-lg shadow-orange-500/10"
           />
         </div>
-        <h1 className="text-3xl font-serif font-light text-white text-center mb-2">Sonic Wisdom</h1>
-        <p className="text-white/40 text-center mb-8 text-sm tracking-widest uppercase">Enter your email to sign in</p>
+        <h1 className="text-3xl font-serif font-light text-gray-900 text-center mb-2">Sensus</h1>
+        <p className="text-gray-400 text-center mb-8 text-sm tracking-widest uppercase">Enter your email to sign in</p>
 
         {isSent ? (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6 text-center"
+            className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-6 text-center"
           >
-            <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-            <h2 className="text-emerald-400 font-semibold mb-2">Magic link sent!</h2>
-            <p className="text-emerald-400/70 text-sm">
-              Check <span className="font-medium text-emerald-400">{email}</span> and click the link to sign in.
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
+            <h2 className="text-emerald-600 font-semibold mb-2">Magic link sent!</h2>
+            <p className="text-emerald-600/70 text-sm">
+              Check <span className="font-medium text-emerald-600">{email}</span> and click the link to sign in.
             </p>
             <button onClick={() => { setIsSent(false); setEmail(''); }}
-              className="mt-6 text-emerald-400/60 hover:text-emerald-400 text-sm transition-colors">
+              className="mt-6 text-emerald-600/60 hover:text-emerald-600 text-sm transition-colors">
               Try another email
             </button>
           </motion.div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
               <input type="email" required value={email} disabled={loading}
                 onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com"
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500/50 transition-all"
+                className="w-full bg-black/5 border border-black/10 rounded-xl py-3 pl-12 pr-4 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-orange-500/50 transition-all"
               />
             </div>
-            {error && <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">{error}</p>}
+            {error && <p className="text-red-600 text-sm bg-red-500/5 border border-red-500/10 rounded-lg p-3">{error}</p>}
             <button type="submit" disabled={loading || !email.trim()}
-              className="w-full bg-orange-800/80 hover:bg-orange-700 disabled:opacity-40 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+              className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20">
               {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Sending...</> : 'Send magic link'}
             </button>
           </form>
         )}
-        <p className="mt-8 text-center text-white/20 text-xs">By signing in, you agree to our Terms of Service and Privacy Policy.</p>
+        <p className="mt-8 text-center text-gray-300 text-xs">By signing in, you agree to our Terms of Service and Privacy Policy.</p>
       </motion.div>
     </div>
   );
@@ -143,7 +143,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, []);
 
   if (checking) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#1a0800]">
+    <div className="min-h-screen flex items-center justify-center bg-[#fcf8f5]">
       <Loader2 className="w-8 h-8 animate-spin text-orange-500/40" />
     </div>
   );
@@ -160,9 +160,9 @@ export const UserBadge: React.FC = () => {
   if (!user) return null;
   return (
     <div className="flex items-center gap-2">
-      <span className="hidden sm:block text-xs text-white/30 font-light">{user.email}</span>
+      <span className="hidden sm:block text-xs text-gray-400 font-light">{user.email}</span>
       <button onClick={logout} title="Sign out"
-        className="p-2 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors">
+        className="p-2 rounded-full text-gray-400 hover:text-gray-900 hover:bg-black/5 transition-colors">
         <LogOut className="w-4 h-4" />
       </button>
     </div>
