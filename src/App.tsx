@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2 } from 'lucide-react';
+import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
@@ -26,6 +26,9 @@ export default function App() {
   const [showInfo, setShowInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [inputText, setInputText] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll transcript
@@ -50,7 +53,7 @@ export default function App() {
 
   const THEMES: Record<string, { label: string; topics: string; context: string; description: string }> = {
     sonic: {
-      label: "Sonic Wisdom",
+      label: "Sonic Traditions",
       topics: "linguistics, phonemes, and ancient sound traditions (Norse Galdr, Vedic Mantras, Sufism, Taoism)",
       context: "Your knowledge spans the cross-cultural significance of sound and how it shapes reality.",
       description: "Explore the sacred phonemes of ancient traditions"
@@ -111,7 +114,11 @@ export default function App() {
     instruction += `\n\nCRITICAL: DO NOT output your internal reasoning, thoughts, or 'pondering' process. 
     ONLY output the direct spoken response to the user. 
     NEVER include meta-commentary about your decision-making or how you are reflecting on the user's input. 
-    Speak as the character directly and naturally. Do not use phrases like "I've been examining", "Considering", "I acknowledge", etc.`;
+    Speak as the character directly and naturally. Do not use phrases like "I've been examining", "Considering", "I acknowledge", etc.
+    
+    VISION CAPABILITY: You CAN see images that the user uploads or drops into the chat. 
+    If the user shares an image, describe it and relate it to the current topic of conversation. 
+    Never claim you cannot see images.`;
 
     return instruction;
   };
@@ -135,7 +142,7 @@ export default function App() {
         onMessage: (text, isUser) => {
           console.log(`Received message (isUser: ${isUser}):`, text);
           setTranscript(prev => {
-            const speaker = isUser ? "You" : "Sonic Wisdom";
+            const speaker = isUser ? "You" : "Sensus";
             if (lastSpeakerRef.current !== speaker) {
               lastSpeakerRef.current = speaker;
               const prefix = `\n\n**${speaker}:** `;
@@ -233,6 +240,181 @@ export default function App() {
     setInputText("");
   };
 
+  const processFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError("Please upload an image file.");
+      return;
+    }
+    if (!session || !isConnected) {
+      setError("Please connect to a session first.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+          const mimeType = file.type;
+
+          await session.sendImage(base64Data, mimeType);
+          setTranscript(prev => prev + `\n\n**You:** [Shared an image: ${file.name || 'Pasted Image'}]`);
+        } catch (err) {
+          console.error("Error sending image:", err);
+          setError("Failed to send image to the assistant.");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.onerror = () => {
+        setError("Failed to read the image file.");
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("File processing error:", err);
+      setError("An unexpected error occurred while processing the image.");
+      setIsUploading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handlePaste = useCallback((e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) processFile(file);
+      }
+    }
+  }, [session]);
+
+  const processUrl = async (url: string) => {
+    if (!session || !isConnected) {
+      setError("Please connect to a session first.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      console.log("Attempting to fetch image from URL:", url);
+      const response = await fetch(url);
+      const blob = await response.blob();
+      
+      if (!blob.type.startsWith('image/')) {
+        throw new Error("URL does not point to an image.");
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+          const mimeType = blob.type;
+
+          await session.sendImage(base64Data, mimeType);
+          setTranscript(prev => prev + `\n\n**You:** [Shared an image from URL]`);
+        } catch (err) {
+          console.error("Error sending image from URL:", err);
+          setError("Failed to send image to the assistant.");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("URL processing error:", err);
+      setError("Could not process the image from that link. Try downloading it first.");
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    console.log("--- Drop Event Detected ---");
+    console.log("DataTransfer Types:", e.dataTransfer?.types);
+    
+    // 1. Check for Files (Local computer)
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      console.log("Found Files in drop:", e.dataTransfer.files.length);
+      processFile(e.dataTransfer.files[0]);
+      return;
+    } 
+    
+    // 2. Check for URL (Web app drag)
+    const url = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain');
+    if (url && (url.startsWith('http') || url.startsWith('data:image'))) {
+      console.log("Found URL in drop:", url);
+      processUrl(url);
+      return;
+    }
+
+    // 3. Check for Items (Modern browser fallback)
+    if (e.dataTransfer?.items) {
+      console.log("Checking DataTransfer Items...");
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        console.log(`Item ${i}: kind=${e.dataTransfer.items[i].kind}, type=${e.dataTransfer.items[i].type}`);
+        if (e.dataTransfer.items[i].kind === 'file') {
+          const file = e.dataTransfer.items[i].getAsFile();
+          if (file) {
+            processFile(file);
+            return;
+          }
+        }
+      }
+    }
+
+    console.warn("No processable image data found in drop event.");
+  }, [session, isConnected]);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false if we're leaving the window
+    if (e.relatedTarget === null) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('paste', handlePaste);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+    
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, [handlePaste, handleDragOver, handleDragEnter, handleDragLeave, handleDrop]);
+
   const downloadTranscript = () => {
     if (!transcript) return;
     const blob = new Blob([transcript.replace(/\*\*/g, '')], { type: 'text/plain' });
@@ -254,14 +436,31 @@ export default function App() {
   };
 
   const content = (
-    <div className="relative min-h-screen flex flex-col items-center p-6 overflow-y-auto">
+    <div 
+      className={`relative min-h-screen flex flex-col items-center p-6 overflow-y-auto transition-colors duration-300 ${isDragging ? 'bg-orange-500/10' : ''}`}
+    >
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-orange-500/20 backdrop-blur-sm pointer-events-none"
+          >
+            <div className="bg-black/60 px-8 py-4 rounded-full border border-orange-500/50 flex items-center gap-3">
+              <Upload className="w-6 h-6 text-orange-500 animate-bounce" />
+              <span className="text-white font-serif italic text-xl">Drop to share your vision...</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="atmosphere fixed inset-0 pointer-events-none" />
       
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 p-8 flex justify-between items-center z-10">
         <div className="flex items-center gap-3">
-          <img src="https://favicons.vegvisr.org/favicons/1772468624359-1-1772468669531-512x512.png" alt="Sonic Wisdom" className="w-[100px] h-[100px] rounded-full shadow-lg shadow-orange-900/20" />
-          <h1 className="text-2xl font-serif font-light tracking-widest uppercase">Sonic Wisdom</h1>
+          <img src="https://favicons.vegvisr.org/favicons/1772468624359-1-1772468669531-512x512.png" alt="Sensus" className="w-[100px] h-[100px] rounded-full shadow-lg shadow-orange-900/20" />
+          <h1 className="text-2xl font-serif font-light tracking-widest uppercase">Sensus</h1>
         </div>
         
         <div className="flex gap-4">
@@ -507,22 +706,42 @@ export default function App() {
                 </div>
 
                 {isConnected && (
-                  <form onSubmit={handleSendText} className="relative w-full max-w-md mx-auto pt-4 border-t border-white/5">
-                    <input
-                      type="text"
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Type a sacred word..."
-                      className="w-full bg-white/5 border border-white/10 rounded-full py-3 px-6 pr-12 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/20"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!inputText.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-white/20 transition-all"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                    </button>
-                  </form>
+                  <div className="w-full max-w-md mx-auto pt-4 border-t border-white/5 space-y-4">
+                    <form onSubmit={handleSendText} className="relative w-full">
+                      <input
+                        type="text"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        placeholder="Type a sacred word..."
+                        className="w-full bg-white/5 border border-white/10 rounded-full py-3 px-6 pr-24 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/20"
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          onChange={handleImageUpload}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="p-2 rounded-full text-white/40 hover:text-white transition-all disabled:opacity-30"
+                          title="Upload image"
+                        >
+                          {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!inputText.trim()}
+                          className="p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-white/20 transition-all"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 )}
               </motion.div>
             ) : history.length > 0 ? (
@@ -574,14 +793,14 @@ export default function App() {
               className="glass max-w-md w-full p-8 rounded-3xl space-y-6"
               onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-2xl font-serif">About Sonic Wisdom</h3>
+              <h3 className="text-2xl font-serif">About Sensus</h3>
               <div className="space-y-4 text-white/60 leading-relaxed font-light">
                 <p>
-                  Sonic Wisdom is an immersive exploration across multiple domains of knowledge. 
+                  Sensus is an immersive exploration across multiple domains of knowledge. 
                   Using the Gemini Live API, you can have real-time voice conversations across several primary themes:
                 </p>
                 <ul className="list-disc list-inside space-y-2">
-                  <li><span className="text-white">Sonic Wisdom:</span> Ancient sound traditions, Galdr, Mantras, and Dhikr.</li>
+                  <li><span className="text-white">Sonic Traditions:</span> Ancient sound traditions, Galdr, Mantras, and Dhikr.</li>
                   <li><span className="text-white">Tech Explorer:</span> Cloudflare Serverless, AI, LLM inference, and coding.</li>
                   <li><span className="text-white">Holistic Wellness:</span> Trauma prevention, Bioenergetics, and Body Work.</li>
                   <li><span className="text-white">Knowledge Management:</span> Organizational KM, SECI model, and knowledge cycles.</li>

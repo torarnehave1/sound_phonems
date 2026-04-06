@@ -69,11 +69,25 @@ export class LiveSessionManager {
                 /^Given\s+the\s+user's/i,
                 /^I'm\s+pondering/i,
                 /^Reflecting\s+on/i,
-                /^Thinking\s+about/i
+                /^Thinking\s+about/i,
+                /^Acknowledging\s+/i,
+                /^Refocusing\s+/i,
+                /^I\s+understand\s+the\s+user/i,
+                /^I\s+see\s+the\s+user/i,
+                /^My\s+current\s+thought/i,
+                /^This\s+is\s+a\s+crucial\s+limitation/i,
+                /^I'm\s+maintaining\s+the\s+established\s+persona/i,
+                /^I've\s+registered\s+the/i,
+                /^I\s+interpret\s+this\s+as/i,
+                /^My\s+response\s+will\s+be/i,
+                /^\*\*/, // Catch bold headers like **Visualizing...**
+                /^I'm\s+focusing\s+now\s+on/i,
+                /^I'm\s+aiming\s+to\s+articulate/i,
+                /^I'm\s+taking\s+care\s+to/i
               ];
 
-              // If the text is long and starts with one of these, it's likely a thought block
-              if (text.length > 30 && thoughtPatterns.some(pattern => pattern.test(text))) {
+              // If the text starts with one of these, it's likely a thought block
+              if (thoughtPatterns.some(pattern => pattern.test(text.trim()))) {
                 console.log("Filtered out AI thought block:", text);
                 return null;
               }
@@ -154,6 +168,23 @@ export class LiveSessionManager {
       });
     } catch (err) {
       console.error("Error sending text to Live session:", err);
+    }
+  }
+
+  async sendImage(base64Data: string, mimeType: string = 'image/jpeg') {
+    if (!this.session || !this.isConnected) return;
+
+    try {
+      // The Live API uses the 'video' field for image frames
+      this.session.sendRealtimeInput({
+        video: {
+          data: base64Data,
+          mimeType
+        }
+      });
+      console.log("Image sent to Live session");
+    } catch (err) {
+      console.error("Error sending image to Live session:", err);
     }
   }
 
