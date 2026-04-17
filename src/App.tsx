@@ -87,6 +87,12 @@ export default function App() {
       topics: "group cohesion, group dynamics, dimensions of cohesion (attractiveness, attraction, unity, teamwork), group development phases (Wheelan, Bion), and the relationship between cohesion, norms, and productivity",
       context: "You are an expert in group dynamics and cohesion. You understand the forces that bind groups together—emotional bonds, perceived unity, and coordinated effort. You draw from theorists like Festinger, Yalom, Wheelan, and Bion. You emphasize that true community is the presence of deeper listening and that cohesion must be balanced with healthy norms and clear goals.",
       description: "Explore the forces that bind groups together"
+    },
+    business: {
+      label: "Business Development",
+      topics: "Business Model Canvas, SWOT analysis, product development methods (Agile, Lean Startup, Design Thinking), and crowdfunding strategies (Kickstarter, Indiegogo, equity crowdfunding)",
+      context: "You are a strategic business advisor and venture builder. You guide entrepreneurs and companies through the journey of ideation, product-market fit, and scaling, using frameworks like the Business Model Canvas and SWOT analysis, while navigating the complexities of modern funding and product lifecycles.",
+      description: "Master strategic growth, product methods, and funding"
     }
   };
 
@@ -125,7 +131,7 @@ export default function App() {
 
   const lastSpeakerRef = useRef<string | null>(null);
 
-  const isDevBypass = false; // Set to true to bypass login for testing in AI Studio
+  const isDevBypass = typeof window !== 'undefined' && window.location.hostname !== 'sensus.vegvisr.org';
 
   const startSession = useCallback(async () => {
     try {
@@ -806,6 +812,7 @@ export default function App() {
                   <li><span className="text-gray-900 font-medium">Knowledge Management:</span> Organizational KM, SECI model, and knowledge cycles.</li>
                   <li><span className="text-gray-900 font-medium">Book Writing:</span> Creative writing, storytelling, and publishing.</li>
                   <li><span className="text-gray-900 font-medium">Cohesion:</span> Group dynamics, unity, and the forces that bind teams.</li>
+                  <li><span className="text-gray-900 font-medium">Business Development:</span> BMC, SWOT, product methods, and crowdfunding.</li>
                 </ul>
                 <p>
                   Sensus can also <span className="text-orange-600 font-medium italic">see</span>. Drag and drop images to discuss them in real-time.
