@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
+import { GoogleGenAI, Modality, LiveServerMessage, Type } from "@google/genai";
 
 export type MessagePart = {
   text?: string;
@@ -24,6 +24,7 @@ export class LiveSessionManager {
     onInterrupted: () => void;
     onError: (err: any) => void;
     onClose: () => void;
+    onSearchStatus?: (isSearching: boolean, query?: string) => void;
   }, settings: {
     voice: string;
     temperature: number;
@@ -45,6 +46,26 @@ export class LiveSessionManager {
           Your knowledge spans Norse culture (Galdr), Vedic culture (Mantras), Sufism (Dhikr), Taoism (Healing Sounds), and the cross-cultural significance of sound.
           Engage in deep, atmospheric conversations about how sound shapes reality and culture. 
           Keep responses concise but profound. Use the user's voice input to guide the exploration.`,
+          tools: [
+            {
+              functionDeclarations: [
+                {
+                  name: "search_internet",
+                  description: "Search the internet for real-time information, news, and technical details using the Perplexity API. Use this when the user asks for current events or information outside your training data.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      query: {
+                        type: Type.STRING,
+                        description: "The search query to look up on the internet."
+                      }
+                    },
+                    required: ["query"]
+                  }
+                }
+              ]
+            }
+          ]
         },
         callbacks: {
           onopen: () => {
@@ -52,6 +73,44 @@ export class LiveSessionManager {
             this.startMic();
           },
           onmessage: async (message: LiveServerMessage) => {
+            // Handle tool calls
+            const modelParts = message.serverContent?.modelTurn?.parts;
+            if (modelParts) {
+              for (const part of modelParts as any[]) {
+                if (part.toolCall) {
+                  for (const call of part.toolCall.functionCalls) {
+                    if (call.name === "search_internet") {
+                      try {
+                        console.log("Executing search_internet with query:", call.args.query);
+                        if (callbacks.onSearchStatus) callbacks.onSearchStatus(true, call.args.query);
+                        
+                        const results = await this.handleInternetSearch(call.args.query);
+                        
+                        this.session.sendToolResponse({
+                          functionResponses: [{
+                            name: "search_internet",
+                            id: call.id,
+                            response: { result: results }
+                          }]
+                        });
+                      } catch (searchErr) {
+                        console.error("Search tool error:", searchErr);
+                        this.session.sendToolResponse({
+                          functionResponses: [{
+                            name: "search_internet",
+                            id: call.id,
+                            response: { error: "Failed to perform internet search." }
+                          }]
+                        });
+                      } finally {
+                        if (callbacks.onSearchStatus) callbacks.onSearchStatus(false);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
             // Helper to filter out AI "thoughts" or "reasoning" that slips into the text stream
             const filterThought = (text: string): string | null => {
               if (!text) return null;
@@ -334,5 +393,38 @@ export class LiveSessionManager {
       this.audioContext.close();
     }
     this.isConnected = false;
+  }
+
+  private async handleInternetSearch(query: string): Promise<string> {
+    try {
+      const response = await fetch('https://perplexity.vegvisr.org/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Perplexity API search failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Standardize the response for the model
+      // Often Perplexity returns an answer and citations
+      if (data.answer) {
+        let result = data.answer;
+        if (data.citations && data.citations.length > 0) {
+          result += "\n\nSources:\n" + data.citations.map((c: string, i: number) => `[${i+1}] ${c}`).join('\n');
+        }
+        return result;
+      }
+
+      return JSON.stringify(data);
+    } catch (error) {
+      console.error("Search API fetch error:", error);
+      throw error;
+    }
   }
 }

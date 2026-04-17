@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
+import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2, Image as ImageIcon, Upload, Globe } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
@@ -50,6 +50,8 @@ export default function App() {
   const [conversationStyle, setConversationStyle] = useState<string>("sage");
   const [selectedTheme, setSelectedTheme] = useState<string>("sonic");
   const [customInstructions, setCustomInstructions] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchingQuery, setSearchingQuery] = useState<string | null>(null);
 
   const THEMES: Record<string, { label: string; topics: string; context: string; description: string }> = {
     sonic: {
@@ -167,6 +169,10 @@ export default function App() {
         },
         onClose: () => {
           setIsConnected(false);
+        },
+        onSearchStatus: (searching, query) => {
+          setIsSearching(searching);
+          if (query) setSearchingQuery(query);
         }
       }, {
         voice,
@@ -706,6 +712,22 @@ export default function App() {
                   ref={scrollRef}
                   className="flex-1 overflow-y-auto pr-4 custom-scrollbar"
                 >
+                  <AnimatePresence>
+                    {isSearching && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mb-4 bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 flex items-center gap-3"
+                      >
+                        <Globe className="w-4 h-4 text-orange-600 animate-pulse" />
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase tracking-widest text-orange-600 font-bold">Searching the internet</span>
+                          <span className="text-xs text-orange-800 font-serif italic">"{searchingQuery}"</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <div className="markdown-body text-lg md:text-xl font-serif leading-relaxed text-gray-800 italic">
                     <Markdown>{transcript || "Speak or type to begin your journey..."}</Markdown>
                   </div>
