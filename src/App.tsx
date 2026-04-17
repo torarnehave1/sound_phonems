@@ -126,7 +126,11 @@ export default function App() {
     
     VISION CAPABILITY: You CAN see images that the user uploads or drops into the chat. 
     If the user shares an image, describe it and relate it to the current topic of conversation. 
-    Never claim you cannot see images.`;
+    Never claim you cannot see images.
+    
+    INTERNET SEARCH: You have a tool called 'search_internet' that allows you to search the web for news, real-time info, and technical data. 
+    Use it whenever the user asks for current events or facts outside your training data. 
+    When used, the tool returns search results and citations. Incorporate these into your response naturally.`;
 
     return instruction;
   };
@@ -177,7 +181,7 @@ export default function App() {
       }, {
         voice,
         temperature,
-        model: config.model,
+        model: "gemini-3.1-flash-live-preview",
         systemInstruction: getSystemInstruction()
       });
 

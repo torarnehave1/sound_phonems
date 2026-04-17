@@ -32,6 +32,13 @@ export class LiveSessionManager {
     systemInstruction?: string;
   }) {
     try {
+      const sysInst = settings.systemInstruction || `You are an expert in linguistics, phonemes, and ancient sound traditions. 
+          Your knowledge spans Norse culture (Galdr), Vedic culture (Mantras), Sufism (Dhikr), Taoism (Healing Sounds), and the cross-cultural significance of sound.
+          Engage in deep, atmospheric conversations about how sound shapes reality and culture. 
+          Keep responses concise but profound. Use the user's voice input to guide the exploration.`;
+
+      console.log("Connecting to Live API with model:", settings.model || "gemini-3.1-flash-live-preview");
+
       this.session = await this.ai.live.connect({
         model: settings.model || "gemini-3.1-flash-live-preview",
         config: {
@@ -42,10 +49,9 @@ export class LiveSessionManager {
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           temperature: settings.temperature,
-          systemInstruction: settings.systemInstruction || `You are an expert in linguistics, phonemes, and ancient sound traditions. 
-          Your knowledge spans Norse culture (Galdr), Vedic culture (Mantras), Sufism (Dhikr), Taoism (Healing Sounds), and the cross-cultural significance of sound.
-          Engage in deep, atmospheric conversations about how sound shapes reality and culture. 
-          Keep responses concise but profound. Use the user's voice input to guide the exploration.`,
+          systemInstruction: {
+            parts: [{ text: sysInst }]
+          },
           tools: [
             {
               functionDeclarations: [
@@ -73,12 +79,23 @@ export class LiveSessionManager {
             this.startMic();
           },
           onmessage: async (message: LiveServerMessage) => {
+            // Log full message structure for debugging (truncated if too large)
+            if (message.serverContent?.modelTurn?.parts || message.serverContent?.interrupted) {
+              console.log("Live Session Message:", JSON.stringify(message, (key, value) => {
+                if (key === 'data' && typeof value === 'string' && value.length > 100) return value.substring(0, 100) + '...';
+                return value;
+              }));
+            }
+
             // Handle tool calls
             const modelParts = message.serverContent?.modelTurn?.parts;
             if (modelParts) {
               for (const part of modelParts as any[]) {
-                if (part.toolCall) {
-                  for (const call of part.toolCall.functionCalls) {
+                // Check multiple possible tool call structures to be safe
+                const toolCall = part.toolCall || part.functionCall || part.call;
+                if (toolCall) {
+                  const functionCalls = toolCall.functionCalls || (toolCall.name ? [toolCall] : []);
+                  for (const call of functionCalls) {
                     if (call.name === "search_internet") {
                       try {
                         console.log("Executing search_internet with query:", call.args.query);
@@ -86,21 +103,25 @@ export class LiveSessionManager {
                         
                         const results = await this.handleInternetSearch(call.args.query);
                         
-                        this.session.sendToolResponse({
-                          functionResponses: [{
-                            name: "search_internet",
-                            id: call.id,
-                            response: { result: results }
-                          }]
+                        this.session.send({
+                          toolResponse: {
+                            functionResponses: [{
+                              name: "search_internet",
+                              id: call.id,
+                              response: { result: results }
+                            }]
+                          }
                         });
                       } catch (searchErr) {
                         console.error("Search tool error:", searchErr);
-                        this.session.sendToolResponse({
-                          functionResponses: [{
-                            name: "search_internet",
-                            id: call.id,
-                            response: { error: "Failed to perform internet search." }
-                          }]
+                        this.session.send({
+                          toolResponse: {
+                            functionResponses: [{
+                              name: "search_internet",
+                              id: call.id, // Fallback if id is missing in call
+                              response: { error: "Failed to perform internet search." }
+                            }]
+                          }
                         });
                       } finally {
                         if (callbacks.onSearchStatus) callbacks.onSearchStatus(false);
@@ -139,7 +160,7 @@ export class LiveSessionManager {
                 /^I've\s+registered\s+the/i,
                 /^I\s+interpret\s+this\s+as/i,
                 /^My\s+response\s+will\s+be/i,
-                /^\*\*/, // Catch bold headers like **Visualizing...**
+                // /^\*\*/, // Temporarily disabled to avoid filtering legitimate responses that start with bold
                 /^I'm\s+focusing\s+now\s+on/i,
                 /^I'm\s+aiming\s+to\s+articulate/i,
                 /^I'm\s+taking\s+care\s+to/i
@@ -222,8 +243,9 @@ export class LiveSessionManager {
     if (!this.session || !this.isConnected) return;
     
     try {
-      this.session.sendRealtimeInput({
-        text
+      console.log("Sending text to Live session:", text);
+      this.session.send({
+        parts: [{ text }]
       });
     } catch (err) {
       console.error("Error sending text to Live session:", err);
@@ -234,14 +256,16 @@ export class LiveSessionManager {
     if (!this.session || !this.isConnected) return;
 
     try {
-      // The Live API uses the 'video' field for image frames
-      this.session.sendRealtimeInput({
-        video: {
-          data: base64Data,
-          mimeType
-        }
+      console.log("Sending image to Live session");
+      // For images, we can send as parts with inlineData
+      this.session.send({
+        parts: [{
+          inlineData: {
+            data: base64Data,
+            mimeType
+          }
+        }]
       });
-      console.log("Image sent to Live session");
     } catch (err) {
       console.error("Error sending image to Live session:", err);
     }
