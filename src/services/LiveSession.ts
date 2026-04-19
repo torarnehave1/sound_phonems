@@ -24,7 +24,6 @@ export class LiveSessionManager {
     onInterrupted: () => void;
     onError: (err: any) => void;
     onClose: () => void;
-    onSearchStatus?: (isSearching: boolean, query?: string) => void;
   }, settings: {
     voice: string;
     temperature: number;
@@ -37,9 +36,7 @@ export class LiveSessionManager {
           Engage in deep, atmospheric conversations about how sound shapes reality and culture. 
           Keep responses concise but profound. Use the user's voice input to guide the exploration.`;
 
-      console.log("Connecting to Live API with model:", settings.model || "gemini-3.1-flash-live-preview");
-
-      this.session = await this.ai.live.connect({
+      const liveConfig: any = {
         model: settings.model || "gemini-3.1-flash-live-preview",
         config: {
           responseModalities: [Modality.AUDIO],
@@ -51,88 +48,25 @@ export class LiveSessionManager {
           temperature: settings.temperature,
           systemInstruction: {
             parts: [{ text: sysInst }]
-          },
-          tools: [
-            {
-              functionDeclarations: [
-                {
-                  name: "search_internet",
-                  description: "Search the internet for real-time information, news, and technical details using the Perplexity API. Use this when the user asks for current events or information outside your training data.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                      query: {
-                        type: Type.STRING,
-                        description: "The search query to look up on the internet."
-                      }
-                    },
-                    required: ["query"]
-                  }
-                }
-              ]
-            }
-          ]
+          }
         },
         callbacks: {
           onopen: () => {
             this.isConnected = true;
             this.startMic();
           },
-          onmessage: async (message: LiveServerMessage) => {
-            // Log full message structure for debugging (truncated if too large)
-            if (message.serverContent?.modelTurn?.parts || message.serverContent?.interrupted) {
-              console.log("Live Session Message:", JSON.stringify(message, (key, value) => {
-                if (key === 'data' && typeof value === 'string' && value.length > 100) return value.substring(0, 100) + '...';
-                return value;
-              }));
-            }
-
-            // Handle tool calls
-            const modelParts = message.serverContent?.modelTurn?.parts;
-            if (modelParts) {
-              for (const part of modelParts as any[]) {
-                // Check multiple possible tool call structures to be safe
-                const toolCall = part.toolCall || part.functionCall || part.call;
-                if (toolCall) {
-                  const functionCalls = toolCall.functionCalls || (toolCall.name ? [toolCall] : []);
-                  for (const call of functionCalls) {
-                    if (call.name === "search_internet") {
-                      try {
-                        console.log("Executing search_internet with query:", call.args.query);
-                        if (callbacks.onSearchStatus) callbacks.onSearchStatus(true, call.args.query);
-                        
-                        const results = await this.handleInternetSearch(call.args.query);
-                        
-                        this.session.send({
-                          toolResponse: {
-                            functionResponses: [{
-                              name: "search_internet",
-                              id: call.id,
-                              response: { result: results }
-                            }]
-                          }
-                        });
-                      } catch (searchErr) {
-                        console.error("Search tool error:", searchErr);
-                        this.session.send({
-                          toolResponse: {
-                            functionResponses: [{
-                              name: "search_internet",
-                              id: call.id, // Fallback if id is missing in call
-                              response: { error: "Failed to perform internet search." }
-                            }]
-                          }
-                        });
-                      } finally {
-                        if (callbacks.onSearchStatus) callbacks.onSearchStatus(false);
-                      }
-                    }
-                  }
-                }
+            onmessage: async (message: LiveServerMessage) => {
+              // Detailed logging for ALL messages coming from the server
+              if (message.serverContent) {
+                console.log("Live API Message Received:", JSON.stringify(message, (key, value) => {
+                  if (key === 'data' && typeof value === 'string' && value.length > 50) return value.substring(0, 50) + '...';
+                  return value;
+                }, 2));
               }
-            }
 
-            // Helper to filter out AI "thoughts" or "reasoning" that slips into the text stream
+              // Handle tool calls - (Manual search is now handled in UI layer)
+              
+              // Helper to filter out AI "thoughts" or "reasoning" that slips into the text stream
             const filterThought = (text: string): string | null => {
               if (!text) return null;
               
@@ -224,7 +158,7 @@ export class LiveSessionManager {
               this.stopPlayback();
             }
           },
-          onerror: (err) => {
+          onerror: (err: any) => {
             this.isConnected = false;
             callbacks.onError(err);
           },
@@ -233,7 +167,10 @@ export class LiveSessionManager {
             callbacks.onClose();
           },
         },
-      });
+      };
+
+      console.log("Connecting to Live API with sanitized config:", JSON.stringify({ ...liveConfig, callbacks: 'REDACTED' }, null, 2));
+      this.session = await this.ai.live.connect(liveConfig);
     } catch (err) {
       callbacks.onError(err);
     }
@@ -244,8 +181,8 @@ export class LiveSessionManager {
     
     try {
       console.log("Sending text to Live session:", text);
-      this.session.send({
-        parts: [{ text }]
+      this.session.sendRealtimeInput({
+        text
       });
     } catch (err) {
       console.error("Error sending text to Live session:", err);
@@ -257,14 +194,12 @@ export class LiveSessionManager {
 
     try {
       console.log("Sending image to Live session");
-      // For images, we can send as parts with inlineData
-      this.session.send({
-        parts: [{
-          inlineData: {
-            data: base64Data,
-            mimeType
-          }
-        }]
+      // Use sendRealtimeInput for consistency with the Live API protocol
+      this.session.sendRealtimeInput({
+        video: {
+          data: base64Data,
+          mimeType
+        }
       });
     } catch (err) {
       console.error("Error sending image to Live session:", err);
@@ -417,38 +352,5 @@ export class LiveSessionManager {
       this.audioContext.close();
     }
     this.isConnected = false;
-  }
-
-  private async handleInternetSearch(query: string): Promise<string> {
-    try {
-      const response = await fetch('https://perplexity.vegvisr.org/api/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Perplexity API search failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      // Standardize the response for the model
-      // Often Perplexity returns an answer and citations
-      if (data.answer) {
-        let result = data.answer;
-        if (data.citations && data.citations.length > 0) {
-          result += "\n\nSources:\n" + data.citations.map((c: string, i: number) => `[${i+1}] ${c}`).join('\n');
-        }
-        return result;
-      }
-
-      return JSON.stringify(data);
-    } catch (error) {
-      console.error("Search API fetch error:", error);
-      throw error;
-    }
   }
 }

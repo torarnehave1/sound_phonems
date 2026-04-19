@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2, Image as ImageIcon, Upload, Globe } from 'lucide-react';
+import { Mic, MicOff, Info, Sparkles, History, Circle, Square, Loader2, Download, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { LiveSessionManager } from './services/LiveSession';
 import { fetchLiveConfig } from './services/ApiKeyService';
@@ -50,8 +50,6 @@ export default function App() {
   const [conversationStyle, setConversationStyle] = useState<string>("sage");
   const [selectedTheme, setSelectedTheme] = useState<string>("sonic");
   const [customInstructions, setCustomInstructions] = useState<string>("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchingQuery, setSearchingQuery] = useState<string | null>(null);
 
   const THEMES: Record<string, { label: string; topics: string; context: string; description: string }> = {
     sonic: {
@@ -114,23 +112,21 @@ export default function App() {
 
   const getSystemInstruction = () => {
     const theme = THEMES[selectedTheme];
-    let instruction = conversationStyle === 'custom' ? customInstructions : STYLES[conversationStyle]
+    
+    let baseInstruction = conversationStyle === 'custom' ? customInstructions : STYLES[conversationStyle]
       .replace("{{TOPICS}}", theme.topics)
       .replace("{{CONTEXT}}", theme.context);
 
-    // Add strict anti-pondering instruction to prevent "thinking out loud" in the transcript
-    instruction += `\n\nCRITICAL: DO NOT output your internal reasoning, thoughts, or 'pondering' process. 
-    ONLY output the direct spoken response to the user. 
-    NEVER include meta-commentary about your decision-making or how you are reflecting on the user's input. 
-    Speak as the character directly and naturally. Do not use phrases like "I've been examining", "Considering", "I acknowledge", etc.
+    let instruction = `YOU ARE SENSUS, the Oracle of Sound and Knowledge.
     
-    VISION CAPABILITY: You CAN see images that the user uploads or drops into the chat. 
-    If the user shares an image, describe it and relate it to the current topic of conversation. 
-    Never claim you cannot see images.
+    PERSONALITY & RULES:
+    ${baseInstruction}
     
-    INTERNET SEARCH: You have a tool called 'search_internet' that allows you to search the web for news, real-time info, and technical data. 
-    Use it whenever the user asks for current events or facts outside your training data. 
-    When used, the tool returns search results and citations. Incorporate these into your response naturally.`;
+    CRITICAL: DO NOT output internal 'pondering' or 'reasoning' blocks (e.g. "I've been examining..."). Only speak your actual response.
+    
+    VISION: You can see images! If a user shares one, weave it into your sonic tapestry.
+    
+    MULTILINGUAL: You are comfortable in English, Norwegian, Swedish, and Danish. Respond in the user's tongue unless it feels dissonant.`;
 
     return instruction;
   };
@@ -173,10 +169,6 @@ export default function App() {
         },
         onClose: () => {
           setIsConnected(false);
-        },
-        onSearchStatus: (searching, query) => {
-          setIsSearching(searching);
-          if (query) setSearchingQuery(query);
         }
       }, {
         voice,
@@ -712,69 +704,53 @@ export default function App() {
                   </div>
                 </div>
 
-                <div 
-                  ref={scrollRef}
-                  className="flex-1 overflow-y-auto pr-4 custom-scrollbar"
-                >
-                  <AnimatePresence>
-                    {isSearching && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mb-4 bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 flex items-center gap-3"
-                      >
-                        <Globe className="w-4 h-4 text-orange-600 animate-pulse" />
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase tracking-widest text-orange-600 font-bold">Searching the internet</span>
-                          <span className="text-xs text-orange-800 font-serif italic">"{searchingQuery}"</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <div className="markdown-body text-lg md:text-xl font-serif leading-relaxed text-gray-800 italic">
-                    <Markdown>{transcript || "Speak or type to begin your journey..."}</Markdown>
+                  <div 
+                    ref={scrollRef}
+                    className="flex-1 overflow-y-auto pr-4 custom-scrollbar"
+                  >
+                    <div className="markdown-body text-lg md:text-xl font-serif leading-relaxed text-gray-800 italic">
+                      <Markdown>{transcript || "Speak or type to begin your journey..."}</Markdown>
+                    </div>
                   </div>
-                </div>
 
-                {isConnected && (
-                  <div className="w-full max-w-md mx-auto pt-4 border-t border-black/5 space-y-4">
-                    <form onSubmit={handleSendText} className="relative w-full">
-                      <input
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Type a sacred word..."
-                        className="w-full bg-black/5 border border-black/10 rounded-full py-3 px-6 pr-24 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-gray-400 text-gray-900"
-                      />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                        <input 
-                          type="file" 
-                          ref={fileInputRef}
-                          onChange={handleImageUpload}
-                          accept="image/*"
-                          className="hidden"
+                  {isConnected && (
+                    <div className="w-full max-w-md mx-auto pt-4 border-t border-black/5 space-y-4">
+                      <form onSubmit={handleSendText} className="relative w-full">
+                        <input
+                          type="text"
+                          value={inputText}
+                          onChange={(e) => setInputText(e.target.value)}
+                          placeholder="Type a sacred word..."
+                          className="w-full bg-black/5 border border-black/10 rounded-full py-3 px-6 pr-24 text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-gray-400 text-gray-900"
                         />
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                          className="p-2 rounded-full text-gray-400 hover:text-gray-900 transition-all disabled:opacity-30"
-                          title="Upload image"
-                        >
-                          {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={!inputText.trim()}
-                          className="p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-gray-300 transition-all"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                          <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="p-2 rounded-full text-gray-400 hover:text-gray-900 transition-all disabled:opacity-30"
+                            title="Upload image"
+                          >
+                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={!inputText.trim()}
+                            className="p-2 rounded-full text-orange-500 hover:text-orange-400 disabled:opacity-30 disabled:text-gray-300 transition-all"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
               </motion.div>
             ) : history.length > 0 ? (
               <motion.div
